@@ -1,7 +1,5 @@
 # Quick Start
 
-Get HAPI running in a few minutes.
-
 ## Step 1: Install HAPI
 
 ::: code-group
@@ -53,3 +51,9 @@ http://<your-computer-ip>:3006
 ```
 
 Enter your access token to log in.
+
+## Next steps
+
+- [Remote access](/guide/installation#remote-access) - Access HAPI from anywhere
+- [Notifications](/guide/installation#telegram-setup) - Set up Telegram notifications
+- [Install the app](/guide/pwa) - Add HAPI to your home screen
