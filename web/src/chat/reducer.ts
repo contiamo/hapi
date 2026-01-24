@@ -94,5 +94,10 @@ export function reduceChatBlocks(
         }
     }
 
-    return { blocks: dedupeAgentEvents(foldApiErrorEvents(rootResult.blocks)), hasReadyEvent, latestUsage }
+    // Sort all blocks chronologically to fix bug where tool calls collect at the end.
+    // All blocks have createdAt, and JavaScript's sort is stable (maintains insertion order for equal values).
+    // This ensures tools appear in chronological order with their messages, not appended at the end.
+    const sortedBlocks = rootResult.blocks.sort((a, b) => a.createdAt - b.createdAt)
+
+    return { blocks: dedupeAgentEvents(foldApiErrorEvents(sortedBlocks)), hasReadyEvent, latestUsage }
 }
