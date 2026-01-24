@@ -469,15 +469,28 @@ export function SessionList(props: {
         const sessionIds = Array.from(selectedSessions)
         setIsBulkArchiving(true)
         try {
-            await Promise.all(
+            const results = await Promise.allSettled(
                 sessionIds.map(sessionId => api.archiveSession(sessionId))
             )
-            setSelectedSessions(new Set())
-            setSelectionMode(false)
-            setBulkArchiveOpen(false)
-            props.onRefresh()
+
+            // Count successful vs failed operations
+            const failed = results.filter(r => r.status === 'rejected')
+            const succeeded = results.filter(r => r.status === 'fulfilled')
+
+            if (failed.length > 0) {
+                console.error(`Failed to archive ${failed.length} of ${sessionIds.length} sessions:`, failed)
+                // TODO: Show user-visible error message (task 6)
+            }
+
+            // Only clear selection and close dialog if at least some succeeded
+            if (succeeded.length > 0) {
+                setSelectedSessions(new Set())
+                setSelectionMode(false)
+                setBulkArchiveOpen(false)
+                props.onRefresh()
+            }
         } catch (error) {
-            console.error('Failed to bulk archive sessions:', error)
+            console.error('Unexpected error during bulk archive:', error)
         } finally {
             setIsBulkArchiving(false)
         }
