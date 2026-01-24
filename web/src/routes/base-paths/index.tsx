@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react'
 import { useAppGoBack } from '@/hooks/useAppGoBack'
 import { useBasePaths } from '@/hooks/useBasePaths'
 import { useMachines } from '@/hooks/queries/useMachines'
-import { useApi } from '@/hooks/useApi'
+import { useAppContext } from '@/lib/app-context'
 
 function BackIcon(props: { className?: string }) {
     return (
@@ -66,7 +66,7 @@ function PlusIcon(props: { className?: string }) {
 
 export default function BasePathsPage() {
     const goBack = useAppGoBack()
-    const api = useApi()
+    const { api } = useAppContext()
     const { machines } = useMachines(api)
     const { getBasePaths, addBasePath, removeBasePath } = useBasePaths()
     const [selectedMachineId, setSelectedMachineId] = useState<string | null>(null)
