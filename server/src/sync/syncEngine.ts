@@ -242,7 +242,54 @@ export class SyncEngine {
         if (session.active) {
             throw new Error('Session is already active')
         }
-        await this.rpcGateway.resumeSession(sessionId)
+
+        // Try RPC resume first (if CLI still running)
+        try {
+            await this.rpcGateway.resumeSession(sessionId)
+            // Success - CLI was still running, just reconnected
+            return
+        } catch (error) {
+            const message = error instanceof Error ? error.message : ''
+
+            // If RPC failed because CLI is gone, spawn with --resume
+            if (message.includes('RPC handler not registered') ||
+                message.includes('RPC socket disconnected')) {
+                await this.spawnWithResume(session)
+                return
+            }
+
+            // Other error - rethrow
+            throw error
+        }
+    }
+
+    private async spawnWithResume(session: Session): Promise<void> {
+        const metadata = session.metadata
+        if (!metadata) {
+            throw new Error('Session has no metadata')
+        }
+
+        const claudeSessionId = metadata.claudeSessionId
+        if (!claudeSessionId) {
+            throw new Error('No Claude session ID - cannot resume')
+        }
+
+        const machineId = session.machineId || metadata.machineId
+        if (!machineId) {
+            throw new Error('No machine ID found')
+        }
+
+        // Spawn new process with --resume
+        // This will create a new CLI process that resumes the Claude session
+        // The spawned process will report back with a (potentially new) Claude session ID
+        // but will use the same hapi session ID
+        await this.rpcGateway.spawnResumedSession(
+            session.id,           // Hapi session ID (reuse existing)
+            machineId,
+            metadata.path,
+            claudeSessionId,      // Claude session ID to resume from
+            metadata.flavor || 'claude'
+        )
     }
 
     async switchSession(sessionId: string, to: 'remote' | 'local'): Promise<void> {

@@ -107,6 +107,32 @@ export class RpcGateway {
         await this.sessionRpc(sessionId, 'resumeSession', {})
     }
 
+    async spawnResumedSession(
+        hapiSessionId: string,
+        machineId: string,
+        directory: string,
+        claudeSessionIdToResume: string,
+        agent: 'claude' | 'codex' | 'gemini' = 'claude'
+    ): Promise<void> {
+        const result = await this.machineRpc(
+            machineId,
+            'spawn-resumed-session',
+            {
+                hapiSessionId,
+                directory,
+                agent,
+                claudeSessionIdToResume
+            }
+        )
+
+        if (result && typeof result === 'object') {
+            const obj = result as Record<string, unknown>
+            if (obj.type === 'error' && typeof obj.errorMessage === 'string') {
+                throw new Error(obj.errorMessage)
+            }
+        }
+    }
+
     async spawnSession(
         machineId: string,
         directory: string,

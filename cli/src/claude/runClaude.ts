@@ -27,6 +27,8 @@ export interface StartOptions {
     claudeEnvVars?: Record<string, string>
     claudeArgs?: string[]
     startedBy?: 'runner' | 'terminal'
+    hapiSessionId?: string
+    resumeClaudeSession?: string
 }
 
 export async function runClaude(options: StartOptions = {}): Promise<void> {
@@ -50,7 +52,9 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         flavor: 'claude',
         startedBy,
         workingDirectory,
-        agentState: initialState
+        agentState: initialState,
+        tag: options.hapiSessionId,
+        resumeClaudeSession: options.resumeClaudeSession
     });
     logger.debug(`Session created: ${sessionInfo.id}`);
 
@@ -312,6 +316,12 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
     });
 
     let loopError: unknown = null;
+    // Prepare Claude args - add --resume if needed
+    const claudeArgs = [...(options.claudeArgs || [])];
+    if (options.resumeClaudeSession) {
+        claudeArgs.push('--resume', options.resumeClaudeSession);
+    }
+
     let loopFailed = false;
     try {
         await loop({
@@ -335,7 +345,7 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
             },
             session,
             claudeEnvVars: options.claudeEnvVars,
-            claudeArgs: options.claudeArgs,
+            claudeArgs,
             startedBy,
             hookSettingsPath
         });

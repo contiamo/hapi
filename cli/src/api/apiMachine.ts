@@ -196,6 +196,38 @@ export class ApiMachineClient {
             return { message: 'Session stopped' }
         })
 
+        this.rpcHandlerManager.registerHandler('spawn-resumed-session', async (params: any) => {
+            const { hapiSessionId, directory, agent, claudeSessionIdToResume } = params || {}
+
+            if (!hapiSessionId) {
+                throw new Error('Hapi session ID is required')
+            }
+            if (!directory) {
+                throw new Error('Directory is required')
+            }
+            if (!claudeSessionIdToResume) {
+                throw new Error('Claude session ID to resume is required')
+            }
+
+            // Spawn with the existing hapi session ID
+            // The resumeClaudeSessionId will be passed to the spawned process via args
+            const result = await spawnSession({
+                directory,
+                sessionId: hapiSessionId,
+                agent,
+                resumeClaudeSessionId: claudeSessionIdToResume
+            })
+
+            switch (result.type) {
+                case 'success':
+                    return { type: 'success', sessionId: result.sessionId }
+                case 'requestToApproveDirectoryCreation':
+                    return { type: 'requestToApproveDirectoryCreation', directory: result.directory }
+                case 'error':
+                    throw new Error(result.errorMessage)
+            }
+        })
+
         this.rpcHandlerManager.registerHandler('stop-runner', () => {
             setTimeout(() => requestShutdown(), 100)
             return { message: 'Runner stop request acknowledged' }

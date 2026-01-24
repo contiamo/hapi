@@ -177,7 +177,7 @@ export async function startRunner(): Promise<void> {
     const spawnSession = async (options: SpawnSessionOptions): Promise<SpawnSessionResult> => {
       logger.debugLargeJson('[RUNNER RUN] Spawning session', options);
 
-      const { directory, sessionId, machineId, approvedNewDirectoryCreation = true } = options;
+      const { directory, sessionId, machineId, approvedNewDirectoryCreation = true, resumeClaudeSessionId } = options;
       const agent = options.agent ?? 'claude';
       const yolo = options.yolo === true;
       const sessionType = options.sessionType ?? 'simple';
@@ -333,15 +333,23 @@ export async function startRunner(): Promise<void> {
           '--hapi-starting-mode', 'remote',
           '--started-by', 'runner'
         ];
+
+        // Pass hapi session ID if provided (for resuming existing sessions)
+        if (sessionId) {
+          args.push('--hapi-session-id', sessionId);
+        }
+
+        // Pass Claude session ID to resume if provided
+        if (resumeClaudeSessionId) {
+          args.push('--resume-claude-session', resumeClaudeSessionId);
+        }
+
         if (options.model) {
           args.push('--model', options.model);
         }
         if (yolo) {
           args.push('--yolo');
         }
-
-        // TODO: In future, sessionId could be used with --resume to continue existing sessions
-        // For now, we ignore it - each spawn creates a new session
         const MAX_TAIL_CHARS = 4000;
         let stderrTail = '';
         const appendTail = (current: string, chunk: Buffer | string): string => {

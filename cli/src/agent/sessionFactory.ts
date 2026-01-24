@@ -21,6 +21,7 @@ export type SessionBootstrapOptions = {
     workingDirectory?: string
     tag?: string
     agentState?: AgentState | null
+    resumeClaudeSession?: string
 }
 
 export type SessionBootstrapResult = {
