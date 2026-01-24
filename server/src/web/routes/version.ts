@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import type { WebAppEnv } from '../middleware/auth'
 // @ts-ignore - version.json is generated at build time
-import versionFile from '../../dist/version.json' assert { type: 'file' }
+import versionFile from '../../../dist/version.json' assert { type: 'file' }
 
 interface VersionInfo {
     sha: string
