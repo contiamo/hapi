@@ -7,6 +7,7 @@ import { useSessions } from '@/hooks/queries/useSessions'
 import { useActiveSuggestions, type Suggestion } from '@/hooks/useActiveSuggestions'
 import { useDirectorySuggestions } from '@/hooks/useDirectorySuggestions'
 import { useRecentPaths } from '@/hooks/useRecentPaths'
+import { useBasePaths } from '@/hooks/useBasePaths'
 import type { AgentType, SessionType } from './types'
 import { ActionButtons } from './ActionButtons'
 import { AgentSelector } from './AgentSelector'
@@ -15,6 +16,7 @@ import { MachineSelector } from './MachineSelector'
 import { ModelSelector } from './ModelSelector'
 import { SessionTypeSelector } from './SessionTypeSelector'
 import { YoloToggle } from './YoloToggle'
+import { BasePathSelector } from './BasePathSelector'
 
 export function NewSession(props: {
     api: ApiClient
@@ -28,6 +30,7 @@ export function NewSession(props: {
     const { sessions } = useSessions(props.api)
     const isFormDisabled = Boolean(isPending || props.isLoading)
     const { getRecentPaths, addRecentPath, getLastUsedMachineId, setLastUsedMachineId } = useRecentPaths()
+    const { getBasePaths } = useBasePaths()
 
     const [machineId, setMachineId] = useState<string | null>(null)
     const [directory, setDirectory] = useState('')
@@ -71,6 +74,11 @@ export function NewSession(props: {
     const recentPaths = useMemo(
         () => getRecentPaths(machineId),
         [getRecentPaths, machineId]
+    )
+
+    const basePaths = useMemo(
+        () => getBasePaths(machineId),
+        [getBasePaths, machineId]
     )
 
     const allPaths = useDirectorySuggestions(machineId, sessions, recentPaths)
@@ -245,6 +253,15 @@ export function NewSession(props: {
                 onSuggestionSelect={handleSuggestionSelect}
                 onPathClick={handlePathClick}
             />
+            {basePaths.length > 0 && (
+                <BasePathSelector
+                    machineId={machineId}
+                    basePaths={basePaths}
+                    api={props.api}
+                    onSelectPath={handlePathClick}
+                    isDisabled={isFormDisabled}
+                />
+            )}
             <SessionTypeSelector
                 sessionType={sessionType}
                 worktreeName={worktreeName}

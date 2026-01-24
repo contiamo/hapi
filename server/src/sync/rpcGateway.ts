@@ -142,6 +142,20 @@ export class RpcGateway {
         return exists
     }
 
+    async listDirectories(machineId: string, path: string): Promise<string[]> {
+        const result = await this.machineRpc(machineId, 'list-directories', { path }) as { directories: string[] } | unknown
+        if (!result || typeof result !== 'object') {
+            throw new Error('Unexpected list-directories result')
+        }
+
+        const directories = (result as { directories: string[] }).directories
+        if (!Array.isArray(directories)) {
+            throw new Error('Unexpected list-directories result')
+        }
+
+        return directories
+    }
+
     async getGitStatus(sessionId: string, cwd?: string): Promise<RpcCommandResponse> {
         return await this.sessionRpc(sessionId, 'git-status', { cwd }) as RpcCommandResponse
     }

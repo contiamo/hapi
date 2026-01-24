@@ -3,7 +3,8 @@
  */
 
 import { io, type Socket } from 'socket.io-client'
-import { stat } from 'node:fs/promises'
+import { stat, readdir } from 'node:fs/promises'
+import { join } from 'node:path'
 import { logger } from '@/ui/logger'
 import { configuration } from '@/configuration'
 import type { Update, UpdateMachineBody } from '@hapi/protocol'
@@ -96,6 +97,30 @@ export class ApiMachineClient {
             }))
 
             return { exists }
+        })
+
+        this.rpcHandlerManager.registerHandler<{ path: string }, { directories: string[] }>('list-directories', async (params) => {
+            const path = typeof params?.path === 'string' ? params.path.trim() : ''
+            if (!path) {
+                return { directories: [] }
+            }
+
+            try {
+                const stats = await stat(path)
+                if (!stats.isDirectory()) {
+                    return { directories: [] }
+                }
+
+                const entries = await readdir(path, { withFileTypes: true })
+                const directories = entries
+                    .filter(entry => entry.isDirectory() && !entry.name.startsWith('.'))
+                    .map(entry => join(path, entry.name))
+                    .sort()
+
+                return { directories }
+            } catch {
+                return { directories: [] }
+            }
         })
     }
 

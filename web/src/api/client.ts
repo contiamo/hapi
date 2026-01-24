@@ -355,6 +355,19 @@ export class ApiClient {
         )
     }
 
+    async listMachineDirectories(
+        machineId: string,
+        path: string
+    ): Promise<{ directories: string[] }> {
+        return await this.request<{ directories: string[] }>(
+            `/api/machines/${encodeURIComponent(machineId)}/paths/list-directories`,
+            {
+                method: 'POST',
+                body: JSON.stringify({ path })
+            }
+        )
+    }
+
     async spawnSession(
         machineId: string,
         directory: string,
