@@ -79,6 +79,10 @@ export default {
   'dialog.delete.description': 'Are you sure you want to delete "{name}"? This action cannot be undone.',
   'dialog.delete.confirm': 'Delete',
   'dialog.delete.confirming': 'Deleting…',
+  'dialog.bulkArchive.title': 'Archive Sessions',
+  'dialog.bulkArchive.description': 'Are you sure you want to archive {count} selected sessions? Active sessions will be disconnected.',
+  'dialog.bulkArchive.confirm': 'Archive All',
+  'dialog.bulkArchive.confirming': 'Archiving…',
   'dialog.error.default': 'Operation failed. Please try again.',
 
   // Common buttons

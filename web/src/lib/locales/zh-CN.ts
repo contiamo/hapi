@@ -81,6 +81,10 @@ export default {
   'dialog.delete.description': '确定要删除 "{name}" 吗？此操作无法撤销。',
   'dialog.delete.confirm': '删除',
   'dialog.delete.confirming': '删除中…',
+  'dialog.bulkArchive.title': '归档会话',
+  'dialog.bulkArchive.description': '确定要归档 {count} 个选定的会话吗？活动会话将被断开连接。',
+  'dialog.bulkArchive.confirm': '全部归档',
+  'dialog.bulkArchive.confirming': '归档中…',
   'dialog.error.default': '操作失败，请重试。',
 
   // Common buttons

@@ -408,6 +408,8 @@ export function SessionList(props: {
     )
     const [selectionMode, setSelectionMode] = useState(false)
     const [selectedSessions, setSelectedSessions] = useState<Set<string>>(new Set())
+    const [bulkArchiveOpen, setBulkArchiveOpen] = useState(false)
+    const [isBulkArchiving, setIsBulkArchiving] = useState(false)
 
     const isGroupCollapsed = (group: SessionGroup): boolean => {
         const override = collapseOverrides.get(group.directory)
@@ -456,19 +458,28 @@ export function SessionList(props: {
         })
     }, [groups])
 
-    const handleBulkArchive = async () => {
+    const handleBulkArchiveClick = () => {
+        if (selectedSessions.size === 0) return
+        setBulkArchiveOpen(true)
+    }
+
+    const handleBulkArchiveConfirm = async () => {
         if (!api || selectedSessions.size === 0) return
 
         const sessionIds = Array.from(selectedSessions)
+        setIsBulkArchiving(true)
         try {
             await Promise.all(
                 sessionIds.map(sessionId => api.archiveSession(sessionId))
             )
             setSelectedSessions(new Set())
             setSelectionMode(false)
+            setBulkArchiveOpen(false)
             props.onRefresh()
         } catch (error) {
             console.error('Failed to bulk archive sessions:', error)
+        } finally {
+            setIsBulkArchiving(false)
         }
     }
 
@@ -493,7 +504,7 @@ export function SessionList(props: {
                             </div>
                             <button
                                 type="button"
-                                onClick={handleBulkArchive}
+                                onClick={handleBulkArchiveClick}
                                 disabled={selectedSessions.size === 0}
                                 className="px-3 py-1.5 rounded-md bg-red-500 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
                                 title="Archive selected sessions"
@@ -572,6 +583,18 @@ export function SessionList(props: {
                     )
                 })}
             </div>
+
+            <ConfirmDialog
+                isOpen={bulkArchiveOpen}
+                onClose={() => setBulkArchiveOpen(false)}
+                title={t('dialog.bulkArchive.title')}
+                description={t('dialog.bulkArchive.description', { count: selectedSessions.size })}
+                confirmLabel={t('dialog.bulkArchive.confirm')}
+                confirmingLabel={t('dialog.bulkArchive.confirming')}
+                onConfirm={handleBulkArchiveConfirm}
+                isPending={isBulkArchiving}
+                destructive
+            />
         </div>
     )
 }
