@@ -4,10 +4,12 @@ import type { AttachmentMetadata, DecryptedMessage } from '@/types/api'
 import { makeClientSideId } from '@/lib/messages'
 import {
     appendOptimisticMessage,
+    clearMessageWindow,
     getMessageWindowState,
     updateMessageStatus,
 } from '@/lib/message-window-store'
 import { usePlatform } from '@/hooks/usePlatform'
+import { useSimpleToast } from '@/lib/simple-toast'
 
 type SendMessageInput = {
     sessionId: string
@@ -37,13 +39,24 @@ export function useSendMessage(api: ApiClient | null, sessionId: string | null):
     isSending: boolean
 } {
     const { haptic } = usePlatform()
+    const toast = useSimpleToast()
 
     const mutation = useMutation({
         mutationFn: async (input: SendMessageInput) => {
             if (!api) {
                 throw new Error('API unavailable')
             }
+
+            // Detect clear command
+            const isClearCommand = input.text.trim() === '/clear'
+
             await api.sendMessage(input.sessionId, input.text, input.localId, input.attachments)
+
+            // Clear UI immediately after sending clear command
+            if (isClearCommand) {
+                clearMessageWindow(input.sessionId)
+                toast.success('Chat history cleared')
+            }
         },
         onMutate: async (input) => {
             const optimisticMessage: DecryptedMessage = {
