@@ -2,8 +2,35 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { resolve } from 'node:path'
+import type { Plugin } from 'vite'
+import { execSync } from 'node:child_process'
 
 const base = process.env.VITE_BASE_URL || '/'
+
+// Get version info at build time
+function getVersionInfo() {
+    try {
+        const sha = execSync('git rev-parse HEAD').toString().trim()
+        const shortSha = sha.substring(0, 7)
+        return { sha, shortSha }
+    } catch {
+        return { sha: 'unknown', shortSha: 'unknown' }
+    }
+}
+
+// Plugin to inject version into HTML
+function injectVersionPlugin(): Plugin {
+    const version = getVersionInfo()
+    return {
+        name: 'inject-version',
+        transformIndexHtml(html) {
+            return html.replace(
+                '</head>',
+                `    <meta name="app-version" content="${version.sha}" />\n    <meta name="app-version-short" content="${version.shortSha}" />\n  </head>`
+            )
+        },
+    }
+}
 
 export default defineConfig({
     server: {
@@ -22,6 +49,7 @@ export default defineConfig({
     },
     plugins: [
         react(),
+        injectVersionPlugin(),
         VitePWA({
             registerType: 'autoUpdate',
             includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png', 'mask-icon.svg'],
