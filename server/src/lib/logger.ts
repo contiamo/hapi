@@ -19,9 +19,11 @@
  */
 
 import pino from 'pino'
+import { isBunCompiled } from '../utils/bunCompiled'
 
 const isDev = process.env.NODE_ENV === 'development'
 const logLevel = process.env.LOG_LEVEL || (isDev ? 'debug' : 'info')
+const isCompiled = isBunCompiled()
 
 /**
  * Main logger instance
@@ -29,9 +31,10 @@ const logLevel = process.env.LOG_LEVEL || (isDev ? 'debug' : 'info')
 export const logger = pino({
     level: logLevel,
 
-    // For development: pretty print
-    // For production: JSON to stdout (journald will capture)
-    transport: isDev ? {
+    // For development (not compiled): pretty print
+    // For production (compiled): JSON to stdout (journald will capture)
+    // Note: pino-pretty can't be loaded in compiled binaries
+    transport: (isDev && !isCompiled) ? {
         target: 'pino-pretty',
         options: {
             colorize: true,
