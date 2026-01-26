@@ -7,8 +7,6 @@ import type { WebAppEnv } from '../middleware/auth'
 import { requireSessionFromParam, requireSyncEngine } from './guards'
 import { logger } from '../../lib/logger'
 
-const sessionsLogger = logger.child({ component: 'SessionsRoute' })
-
 const permissionModeSchema = z.object({
     mode: PermissionModeSchema
 })
@@ -211,7 +209,8 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return sessionResult
         }
 
-        sessionsLogger.debug({
+        logger.debug({
+            component: 'SessionsRoute',
             sessionId: sessionResult.sessionId,
             isActive: sessionResult.session.active
         }, 'Resume request')
@@ -222,7 +221,8 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
 
         try {
             await engine.resumeSession(sessionResult.sessionId)
-            sessionsLogger.info({
+            logger.info({
+                component: 'SessionsRoute',
                 sessionId: sessionResult.sessionId
             }, 'Resume successful')
             return c.json({ ok: true })

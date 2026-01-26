@@ -6,8 +6,6 @@ import type { WebAppEnv } from '../middleware/auth'
 import { requireSessionFromParam, requireSyncEngine } from './guards'
 import { logger } from '../../lib/logger'
 
-const messagesLogger = logger.child({ component: 'MessagesRoute' })
-
 const querySchema = z.object({
     limit: z.coerce.number().int().min(1).max(200).optional(),
     beforeSeq: z.coerce.number().int().min(1).optional()
@@ -38,7 +36,7 @@ export function createMessagesRoutes(getSyncEngine: () => SyncEngine | null): Ho
         const limit = parsed.success ? (parsed.data.limit ?? 50) : 50
         const beforeSeq = parsed.success ? (parsed.data.beforeSeq ?? null) : null
 
-        messagesLogger.debug({
+        logger.debug({ component: 'MessagesRoute',
             sessionId,
             limit,
             beforeSeq
@@ -46,7 +44,7 @@ export function createMessagesRoutes(getSyncEngine: () => SyncEngine | null): Ho
 
         const result = engine.getMessagesPage(sessionId, { limit, beforeSeq })
 
-        messagesLogger.debug({
+        logger.debug({ component: 'MessagesRoute',
             sessionId,
             messageCount: result.messages.length,
             hasMore: result.page.hasMore

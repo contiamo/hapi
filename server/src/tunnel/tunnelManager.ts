@@ -78,7 +78,6 @@ export class TunnelManager {
     private readonly retryDelayMs = 3000
     private retryTimeout: ReturnType<typeof setTimeout> | null = null
     private stopped = false
-    private logger = logger.child({ component: 'TunnelManager' })
 
     constructor(config: TunnelConfig) {
         this.config = config
@@ -124,7 +123,7 @@ export class TunnelManager {
         }
 
         return new Promise((resolve, reject) => {
-            this.logger.info({ forwardUrl }, 'Starting tunnel')
+            logger.info({ component: 'TunnelManager', forwardUrl }, 'Starting tunnel')
 
             const proc = spawn({
                 cmd: [tunwgPath, '--json', `--forward=${forwardUrl}`],
@@ -171,11 +170,11 @@ export class TunnelManager {
                                 continue
                             }
 
-                            this.logger.debug({ output: trimmed }, 'Tunnel stdout')
+                            logger.debug({ component: 'TunnelManager', output: trimmed }, 'Tunnel stdout')
                         }
                     }
                 } catch (err) {
-                    this.logger.error({ error: err }, 'Stdout read error')
+                    logger.error({ component: 'TunnelManager', error: err }, 'Stdout read error')
                 }
             }
 
@@ -198,7 +197,7 @@ export class TunnelManager {
                         for (const line of lines) {
                             const trimmed = line.trim()
                             if (trimmed) {
-                                this.logger.debug({ output: trimmed }, 'Tunnel stderr')
+                                logger.debug({ component: 'TunnelManager', output: trimmed }, 'Tunnel stderr')
                             }
                         }
                     }
@@ -225,7 +224,7 @@ export class TunnelManager {
 
                 if (exitCode !== 0) {
                     this.state.lastError = `tunwg exited with code ${exitCode}`
-                    this.logger.error({ exitCode }, 'Tunnel process exited with error')
+                    logger.error({ component: 'TunnelManager', exitCode }, 'Tunnel process exited with error')
 
                     // Reject the promise immediately if we haven't got a URL yet
                     if (!resolved) {
@@ -238,18 +237,19 @@ export class TunnelManager {
                     if (this.state.retryCount < this.maxRetries) {
                         this.state.retryCount++
                         const delay = this.retryDelayMs * Math.pow(2, this.state.retryCount - 1)
-                        this.logger.info({
+                        logger.info({
+                            component: 'TunnelManager',
                             delayMs: delay,
                             attempt: this.state.retryCount,
                             maxRetries: this.maxRetries
                         }, 'Restarting tunnel')
                         this.retryTimeout = setTimeout(() => {
                             this.spawnTunwg().catch(err => {
-                                this.logger.error({ error: err }, 'Tunnel restart failed')
+                                logger.error({ component: 'TunnelManager', error: err }, 'Tunnel restart failed')
                             })
                         }, delay)
                     } else {
-                        this.logger.error('Max retries reached, tunnel disabled')
+                        logger.error({ component: 'TunnelManager' }, 'Max retries reached, tunnel disabled')
                     }
                 } else if (!resolved) {
                     // Process exited cleanly but no URL - shouldn't happen, but handle gracefully

@@ -4,8 +4,6 @@ import type { WebAppEnv } from '../middleware/auth'
 import versionFile from '../../../dist/version.json' assert { type: 'file' }
 import { logger } from '../../lib/logger'
 
-const versionLogger = logger.child({ component: 'Version' })
-
 interface VersionInfo {
     sha: string
     shortSha: string
@@ -29,7 +27,7 @@ async function loadVersion(): Promise<VersionInfo> {
         cachedVersion = JSON.parse(content)
         return cachedVersion!
     } catch (error) {
-        versionLogger.error({ error }, 'Failed to load version.json')
+        logger.error({ component: 'Version', error }, 'Failed to load version.json')
         // Fallback version
         cachedVersion = {
             sha: 'unknown',

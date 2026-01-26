@@ -121,13 +121,16 @@ async function main() {
         : baseCorsOrigins
 
     // Display CLI API token information
+    // Use console.log for intentional token display - structured logging would redact or persist the token
     if (config.cliApiTokenIsNew) {
-        logger.warn({
-            token: config.cliApiToken,
-            settingsFile: config.settingsFile
-        }, '⚠️  NEW CLI_API_TOKEN GENERATED - Save this token securely')
+        console.log('')
+        console.log('⚠️  NEW CLI_API_TOKEN GENERATED - Save this token securely')
+        console.log(`   Token: ${config.cliApiToken}`)
+        console.log(`   Saved to: ${config.settingsFile}`)
+        console.log('')
     } else {
         logger.info({
+            component: 'Server',
             source: formatSource(config.sources.cliApiToken)
         }, 'CLI_API_TOKEN loaded')
     }

@@ -4,7 +4,6 @@ import { extractMessageEventType } from './eventParsing'
 import { logger } from '../lib/logger'
 
 export class NotificationHub {
-    private logger = logger.child({ component: 'NotificationHub' })
     private readonly channels: NotificationChannel[]
     private readonly readyCooldownMs: number
     private readonly permissionDebounceMs: number
@@ -60,7 +59,7 @@ export class NotificationHub {
             const eventType = extractMessageEventType(event)
             if (eventType === 'ready') {
                 this.sendReadyNotification(event.sessionId).catch((error) => {
-                    this.logger.error({ error, sessionId: event.sessionId }, 'Failed to send ready notification')
+                    logger.error({ component: 'NotificationHub', error, sessionId: event.sessionId }, 'Failed to send ready notification')
                 })
             }
         }
@@ -116,7 +115,7 @@ export class NotificationHub {
         const timer = setTimeout(() => {
             this.notificationDebounce.delete(session.id)
             this.sendPermissionNotification(session.id).catch((error) => {
-                this.logger.error({ error, sessionId: session.id }, 'Failed to send permission notification')
+                logger.error({ component: 'NotificationHub', error, sessionId: session.id }, 'Failed to send permission notification')
             })
         }, this.permissionDebounceMs)
 
@@ -153,7 +152,7 @@ export class NotificationHub {
             try {
                 await channel.sendReady(session)
             } catch (error) {
-                this.logger.error({ error, sessionId: session.id }, 'Channel failed to send ready notification')
+                logger.error({ component: 'NotificationHub', error, sessionId: session.id }, 'Channel failed to send ready notification')
             }
         }
     }
@@ -163,7 +162,7 @@ export class NotificationHub {
             try {
                 await channel.sendPermissionRequest(session)
             } catch (error) {
-                this.logger.error({ error, sessionId: session.id }, 'Channel failed to send permission notification')
+                logger.error({ component: 'NotificationHub', error, sessionId: session.id }, 'Channel failed to send permission notification')
             }
         }
     }

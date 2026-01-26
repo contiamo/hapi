@@ -10,8 +10,6 @@ import type { Session, SyncEngine } from '../sync/syncEngine'
 import { parseCallbackData, findSessionByPrefix } from './renderer'
 import { logger } from '../lib/logger'
 
-const callbackLogger = logger.child({ component: 'TelegramCallbacks' })
-
 // Callback action types (simplified - only permission actions)
 export const ACTIONS = {
     APPROVE: 'ap',
@@ -102,7 +100,7 @@ export async function handleCallback(
                 await ctx.answerCallback('Unknown action')
         }
     } catch (error) {
-        callbackLogger.error({ error }, 'Callback handler error')
+        logger.error({ component: 'TelegramCallbacks', error }, 'Callback handler error')
         await ctx.answerCallback('An error occurred')
     }
 }

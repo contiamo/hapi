@@ -17,7 +17,7 @@ import { MachineCache, type Machine } from './machineCache'
 import { MessageService } from './messageService'
 import { RpcGateway, type RpcCommandResponse, type RpcPathExistsResponse, type RpcReadFileResponse, type RpcUploadFileResponse, type RpcDeleteUploadResponse } from './rpcGateway'
 import { SessionCache } from './sessionCache'
-import { createChildLogger, type Logger } from '../lib/logger'
+import { logger } from '../lib/logger'
 
 export type { Session, SyncEvent } from '@hapi/protocol/types'
 export type { Machine } from './machineCache'
@@ -30,7 +30,6 @@ export class SyncEngine {
     private readonly machineCache: MachineCache
     private readonly messageService: MessageService
     private readonly rpcGateway: RpcGateway
-    private readonly logger: Logger
     private inactivityTimer: NodeJS.Timeout | null = null
     private readonly resumeLocks = new Map<string, Promise<void>>()
 
@@ -40,7 +39,6 @@ export class SyncEngine {
         rpcRegistry: RpcRegistry,
         sseManager: SSEManager
     ) {
-        this.logger = createChildLogger({ component: 'SyncEngine' })
         this.eventPublisher = new EventPublisher(sseManager, (event) => this.resolveNamespace(event))
         this.sessionCache = new SessionCache(store, this.eventPublisher)
         this.machineCache = new MachineCache(store, this.eventPublisher)
@@ -328,20 +326,21 @@ export class SyncEngine {
      * This is separated from resumeSession() to allow for proper lock management.
      */
     private async performResume(sessionId: string): Promise<void> {
-        const sessionLogger = this.logger.child({ sessionId })
-        sessionLogger.debug('Starting session resume')
+        logger.debug({ component: 'SyncEngine', sessionId }, 'Starting session resume')
 
         const session = this.sessionCache.getSession(sessionId)
         if (!session) {
-            sessionLogger.warn('Session not found')
+            logger.warn({ component: 'SyncEngine', sessionId }, 'Session not found')
             throw new Error('Session not found')
         }
         if (session.active) {
-            sessionLogger.warn('Session already active')
+            logger.warn({ component: 'SyncEngine', sessionId }, 'Session already active')
             throw new Error('Session is already active')
         }
 
-        sessionLogger.debug({
+        logger.debug({
+            component: 'SyncEngine',
+            sessionId,
             active: session.active,
             flavor: session.metadata?.flavor,
             hasClaudeSessionId: !!session.metadata?.claudeSessionId,
@@ -354,7 +353,7 @@ export class SyncEngine {
 
         // Try RPC resume first (if CLI still running) with retry logic
         try {
-            sessionLogger.debug('Attempting RPC resume (checking if CLI still running)')
+            logger.debug({ component: 'SyncEngine', sessionId }, 'Attempting RPC resume (checking if CLI still running)')
             await this.retryWithBackoff(
                 () => this.rpcGateway.resumeSession(sessionId),
                 {
@@ -371,16 +370,16 @@ export class SyncEngine {
                 }
             )
             // Success - CLI was still running, just reconnected
-            sessionLogger.info('RPC resume successful (CLI was still running)')
+            logger.info({ component: 'SyncEngine', sessionId }, 'RPC resume successful (CLI was still running)')
             return
         } catch (error) {
             const message = error instanceof Error ? error.message : ''
-            sessionLogger.debug({ error: message }, 'RPC resume failed')
+            logger.debug({ component: 'SyncEngine', sessionId, error: message }, 'RPC resume failed')
 
             // If RPC failed because CLI is gone, spawn with --resume
             if (message.includes('RPC handler not registered') ||
                 message.includes('RPC socket disconnected')) {
-                sessionLogger.debug('CLI process not running, spawning new process with --resume flag')
+                logger.debug({ component: 'SyncEngine', sessionId }, 'CLI process not running, spawning new process with --resume flag')
 
                 // Atomic state transition check: verify session hasn't become active
                 // while we were attempting RPC reconnection
@@ -393,12 +392,12 @@ export class SyncEngine {
                 }
 
                 await this.spawnWithResume(currentSession)
-                sessionLogger.info('Session resumed successfully')
+                logger.info({ component: 'SyncEngine', sessionId }, 'Session resumed successfully')
                 return
             }
 
             // Other error - rethrow
-            sessionLogger.error({ error: message }, 'Failed to resume session')
+            logger.error({ component: 'SyncEngine', sessionId, error: message }, 'Failed to resume session')
             throw error
         }
     }
@@ -439,12 +438,12 @@ export class SyncEngine {
      * @throws {Error} If session metadata is missing or invalid
      */
     private async spawnWithResume(session: Session): Promise<void> {
-        const sessionLogger = this.logger.child({ sessionId: session.id })
-        sessionLogger.debug('Preparing to spawn CLI with resume flag')
+        const sessionId = session.id
+        logger.debug({ component: 'SyncEngine', sessionId }, 'Preparing to spawn CLI with resume flag')
 
         const metadata = session.metadata
         if (!metadata) {
-            sessionLogger.error('Session metadata missing')
+            logger.error({ component: 'SyncEngine', sessionId }, 'Session metadata missing')
             throw new Error('Session has no metadata')
         }
 
@@ -466,7 +465,7 @@ export class SyncEngine {
         }
 
         if (!sessionIdToResume) {
-            sessionLogger.error({ flavor }, 'No agent session ID found for resume')
+            logger.error({ component: 'SyncEngine', sessionId, flavor }, 'No agent session ID found for resume')
             throw new Error(
                 `No ${flavor} session ID found - cannot resume. ` +
                 `Session may not have been fully initialized.`
@@ -475,11 +474,13 @@ export class SyncEngine {
 
         const machineId = metadata.machineId
         if (!machineId) {
-            sessionLogger.error('No machine ID found in session metadata')
+            logger.error({ component: 'SyncEngine', sessionId }, 'No machine ID found in session metadata')
             throw new Error('No machine ID found')
         }
 
-        sessionLogger.debug({
+        logger.debug({
+            component: 'SyncEngine',
+            sessionId,
             machineId,
             path: metadata.path,
             sessionIdToResume,
@@ -498,7 +499,7 @@ export class SyncEngine {
             flavor
         )
 
-        sessionLogger.debug('CLI process spawned successfully')
+        logger.debug({ component: 'SyncEngine', sessionId }, 'CLI process spawned successfully')
     }
 
     async switchSession(sessionId: string, to: 'remote' | 'local'): Promise<void> {

@@ -11,8 +11,6 @@ import { getOrCreateSettingsValue } from './generators'
 import { getSettingsFile, readSettings, writeSettings } from './settings'
 import { logger } from '../lib/logger'
 
-const tokenLogger = logger.child({ component: 'CliApiToken' })
-
 export interface CliApiTokenResult {
     token: string
     source: 'env' | 'file' | 'generated'
@@ -50,7 +48,7 @@ function normalizeCliApiToken(rawToken: string, source: CliApiTokenSource): { to
     const parsed = parseAccessToken(rawToken)
     if (!parsed) {
         if (rawToken.includes(':')) {
-            tokenLogger.warn({ source }, 'CLI_API_TOKEN contains ":" but is not a valid token. Server expects a base token without namespace')
+            logger.warn({ component: 'CliApiToken', source }, 'CLI_API_TOKEN contains ":" but is not a valid token. Server expects a base token without namespace')
         }
         return { token: rawToken, didStrip: false }
     }
@@ -59,7 +57,7 @@ function normalizeCliApiToken(rawToken: string, source: CliApiTokenSource): { to
         return { token: rawToken, didStrip: false }
     }
 
-    tokenLogger.warn({
+    logger.warn({ component: 'CliApiToken',
         source,
         namespace: parsed.namespace
     }, 'CLI_API_TOKEN includes namespace suffix. Server expects the base token only; stripping the suffix')
@@ -82,7 +80,7 @@ export async function getOrCreateCliApiToken(dataDir: string): Promise<CliApiTok
     if (envToken) {
         const normalized = normalizeCliApiToken(envToken, 'env')
         if (isWeakToken(normalized.token)) {
-            tokenLogger.warn('CLI_API_TOKEN appears to be weak. Consider using a stronger secret')
+            logger.warn({ component: 'CliApiToken' }, 'CLI_API_TOKEN appears to be weak. Consider using a stronger secret')
         }
 
         // Persist env token to file if not already saved (prevents token loss on env var issues)

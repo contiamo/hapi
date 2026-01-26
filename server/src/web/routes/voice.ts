@@ -8,8 +8,6 @@ import {
 } from '@hapi/protocol/voice'
 import { logger } from '../../lib/logger'
 
-const voiceLogger = logger.child({ component: 'Voice' })
-
 const tokenRequestSchema = z.object({
     customAgentId: z.string().optional(),
     customApiKey: z.string().optional()
@@ -70,14 +68,14 @@ async function createHapiAgent(apiKey: string): Promise<string | null> {
             const errorMessage = typeof errorData.detail === 'string'
                 ? errorData.detail
                 : (errorData.detail as { message?: string })?.message || `API error: ${response.status}`
-            voiceLogger.error({ error: errorMessage }, 'Failed to create agent')
+            logger.error({ component: 'Voice', error: errorMessage }, 'Failed to create agent')
             return null
         }
 
         const data = await response.json() as { agent_id?: string }
         return data.agent_id || null
     } catch (error) {
-        voiceLogger.error({ error }, 'Error creating agent')
+        logger.error({ component: 'Voice', error }, 'Error creating agent')
         return null
     }
 }
@@ -94,17 +92,17 @@ async function getOrCreateAgentId(apiKey: string): Promise<string | null> {
     }
 
     // Try to find existing agent
-    voiceLogger.info('No agent ID configured, searching for existing agent')
+    logger.info({ component: 'Voice' }, 'No agent ID configured, searching for existing agent')
     let agentId = await findHapiAgent(apiKey)
 
     if (agentId) {
-        voiceLogger.info({ agentId }, 'Found existing agent')
+        logger.info({ component: 'Voice', agentId }, 'Found existing agent')
     } else {
         // Create new agent
-        voiceLogger.info('No existing agent found, creating new one')
+        logger.info({ component: 'Voice' }, 'No existing agent found, creating new one')
         agentId = await createHapiAgent(apiKey)
         if (agentId) {
-            voiceLogger.info({ agentId }, 'Created new agent')
+            logger.info({ component: 'Voice', agentId }, 'Created new agent')
         }
     }
 
@@ -167,7 +165,7 @@ export function createVoiceRoutes(): Hono<WebAppEnv> {
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({})) as { detail?: { message?: string }; error?: string }
                 const errorMessage = errorData.detail?.message || errorData.error || `ElevenLabs API error: ${response.status}`
-                voiceLogger.error({ error: errorMessage }, 'Failed to get token from ElevenLabs')
+                logger.error({ component: 'Voice', error: errorMessage }, 'Failed to get token from ElevenLabs')
                 return c.json({
                     allowed: false,
                     error: errorMessage
@@ -188,7 +186,7 @@ export function createVoiceRoutes(): Hono<WebAppEnv> {
                 agentId
             })
         } catch (error) {
-            voiceLogger.error({ error }, 'Error fetching token')
+            logger.error({ component: 'Voice', error }, 'Error fetching token')
             return c.json({
                 allowed: false,
                 error: error instanceof Error ? error.message : 'Network error'

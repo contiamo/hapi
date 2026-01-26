@@ -29,8 +29,6 @@ type PushSubscription = {
 }
 
 export class PushService {
-    private logger = logger.child({ component: 'PushService' })
-
     constructor(
         private readonly vapidKeys: VapidKeys,
         private readonly subject: string,
@@ -76,7 +74,7 @@ export class PushService {
                 return
             }
 
-            this.logger.error({ error, namespace }, 'Failed to send notification')
+            logger.error({ component: 'PushService', error, namespace }, 'Failed to send notification')
         }
     }
 }

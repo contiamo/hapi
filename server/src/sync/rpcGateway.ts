@@ -1,7 +1,7 @@
 import type { ModelMode, PermissionMode } from '@hapi/protocol/types'
 import type { Server } from 'socket.io'
 import type { RpcRegistry } from '../socket/rpcRegistry'
-import { createChildLogger, type Logger } from '../lib/logger'
+import { logger } from '../lib/logger'
 
 export type RpcCommandResponse = {
     success: boolean
@@ -33,13 +33,10 @@ export type RpcPathExistsResponse = {
 }
 
 export class RpcGateway {
-    private readonly logger: Logger
-
     constructor(
         private readonly io: Server,
         private readonly rpcRegistry: RpcRegistry
     ) {
-        this.logger = createChildLogger({ component: 'RpcGateway' })
     }
 
     async approvePermission(
@@ -165,9 +162,10 @@ export class RpcGateway {
         sessionIdToResume: string,
         agent: 'claude' | 'codex' | 'gemini' = 'claude'
     ): Promise<void> {
-        const logger = this.logger.child({ hapiSessionId, machineId })
-
         logger.debug({
+            component: 'RpcGateway',
+            hapiSessionId,
+            machineId,
             directory,
             sessionIdToResume,
             agent
@@ -184,25 +182,25 @@ export class RpcGateway {
             }
         )
 
-        logger.debug({ result }, 'RPC call completed')
+        logger.debug({ component: 'RpcGateway', hapiSessionId, machineId, result }, 'RPC call completed')
 
         if (result && typeof result === 'object') {
             const obj = result as Record<string, unknown>
 
             // Check for domain-specific error format
             if (obj.type === 'error' && typeof obj.errorMessage === 'string') {
-                logger.error({ errorMessage: obj.errorMessage }, 'Domain error from RPC handler')
+                logger.error({ component: 'RpcGateway', hapiSessionId, machineId, errorMessage: obj.errorMessage }, 'Domain error from RPC handler')
                 throw new Error(obj.errorMessage)
             }
 
             // Check for generic RPC error format (from RpcHandlerManager exception handling)
             if (obj.error && typeof obj.error === 'string') {
-                logger.error({ error: obj.error }, 'Infrastructure error from RPC handler')
+                logger.error({ component: 'RpcGateway', hapiSessionId, machineId, error: obj.error }, 'Infrastructure error from RPC handler')
                 throw new Error(obj.error)
             }
         }
 
-        logger.debug('spawn-resumed-session completed successfully')
+        logger.debug({ component: 'RpcGateway', hapiSessionId, machineId }, 'spawn-resumed-session completed successfully')
     }
 
     async spawnSession(

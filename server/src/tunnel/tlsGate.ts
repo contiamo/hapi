@@ -3,8 +3,6 @@ import { connect, type PeerCertificate } from 'node:tls'
 import type { TunnelManager } from './tunnelManager'
 import { logger } from '../lib/logger'
 
-const tlsLogger = logger.child({ component: 'TunnelTLSGate' })
-
 type SubjectAltName = {
     type: 'DNS' | 'IP'
     value: string
@@ -195,7 +193,7 @@ export async function waitForTunnelTlsReady(tunnelUrl: string, tunnelManager: Tu
 
         const now = Date.now()
         if (now - lastLogAt >= logIntervalMs) {
-            tlsLogger.info('Waiting for trusted TLS certificate')
+            logger.info({ component: 'TunnelTLSGate' }, 'Waiting for trusted TLS certificate')
             lastLogAt = now
         }
 

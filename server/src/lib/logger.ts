@@ -3,19 +3,15 @@
  *
  * Features:
  * - Runtime log level changes (via HTTP endpoint or signals)
- * - Automatic child logger tracking for global level updates
  * - JSON output in production (journald-friendly)
  * - Pretty printing in development
  * - Sensitive data redaction
  *
  * Usage:
- *   import { logger, createChildLogger } from '@/lib/logger'
+ *   import { logger } from '@/lib/logger'
  *
  *   logger.info('Server started')
- *   logger.debug({ sessionId }, 'Processing session')
- *
- *   const sessionLogger = createChildLogger({ sessionId: 'abc-123' })
- *   sessionLogger.info('Session created')
+ *   logger.debug({ component: 'MyComponent', sessionId }, 'Processing session')
  */
 
 import pino from 'pino'
@@ -79,44 +75,22 @@ export const logger = pino({
     }
 })
 
-/**
- * Track child loggers for global level changes
- */
-const childLoggers: pino.Logger[] = []
+const VALID_LEVELS = ['trace', 'debug', 'info', 'warn', 'error', 'fatal'] as const
 
 /**
- * Create a child logger with persistent context
- * Automatically tracked for global level changes
- *
- * @param bindings - Context to include in all log messages
- * @returns Child logger instance
- *
- * @example
- * const sessionLogger = createChildLogger({ sessionId: 'abc-123' })
- * sessionLogger.info('Session created')  // Includes sessionId in output
- */
-export function createChildLogger(bindings: object): pino.Logger {
-    const child = logger.child(bindings)
-    childLoggers.push(child)
-    return child
-}
-
-/**
- * Change log level globally (parent + all child loggers)
- * Useful for runtime debugging without restart
+ * Change log level at runtime
+ * Useful for debugging without restart
  *
  * @param level - New log level
- *
- * @example
- * setGlobalLogLevel('debug')  // Enable debug logging
- * setGlobalLogLevel('info')   // Back to normal
  */
 export function setGlobalLogLevel(level: string) {
+    if (!VALID_LEVELS.includes(level as typeof VALID_LEVELS[number])) {
+        logger.warn({ level, component: 'Logger' }, 'Invalid log level, ignoring')
+        return
+    }
+    const previousLevel = logger.level
     logger.level = level
-    childLoggers.forEach(child => {
-        child.level = level
-    })
-    logger.info({ previousLevel: logger.level, newLevel: level }, 'Log level changed globally')
+    logger.info({ previousLevel, newLevel: level, component: 'Logger' }, 'Log level changed')
 }
 
 /**
@@ -126,17 +100,15 @@ export function getLogLevel(): string {
     return logger.level
 }
 
-// Setup signal handlers for emergency log level changes
+// Signal handlers for runtime log level changes
 // SIGUSR1: Enable debug logging
 // SIGUSR2: Reset to info logging
-if (!isDev) {
-    process.on('SIGUSR1', () => {
-        setGlobalLogLevel('debug')
-    })
+process.on('SIGUSR1', () => {
+    setGlobalLogLevel('debug')
+})
 
-    process.on('SIGUSR2', () => {
-        setGlobalLogLevel('info')
-    })
-}
+process.on('SIGUSR2', () => {
+    setGlobalLogLevel('info')
+})
 
 export type Logger = typeof logger

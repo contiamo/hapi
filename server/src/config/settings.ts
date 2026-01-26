@@ -3,8 +3,6 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { logger } from '../lib/logger'
 
-const settingsLogger = logger.child({ component: 'Settings' })
-
 export interface Settings {
     machineId?: string
     machineIdConfirmedByServer?: boolean
@@ -44,7 +42,7 @@ export async function readSettings(settingsFile: string): Promise<Settings | nul
         return JSON.parse(content)
     } catch (error) {
         // Return null to signal parse error - caller should not overwrite
-        settingsLogger.error({ settingsFile, error }, 'Failed to parse settings file')
+        logger.error({ component: 'Settings', settingsFile, error }, 'Failed to parse settings file')
         return null
     }
 }

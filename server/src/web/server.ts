@@ -2,8 +2,6 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger as honoLogger } from 'hono/logger'
 import { logger } from '../lib/logger'
-
-const webServerLogger = logger.child({ component: 'WebServer' })
 import { join } from 'node:path'
 import { existsSync } from 'node:fs'
 import { serveStatic } from 'hono/bun'
@@ -251,7 +249,8 @@ export async function startWebServer(options: {
         }
     })
 
-    webServerLogger.info({
+    logger.info({
+        component: 'WebServer',
         listenHost: configuration.listenHost,
         listenPort: configuration.listenPort,
         publicUrl: configuration.publicUrl

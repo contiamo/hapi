@@ -6,7 +6,6 @@ export type SyncEventListener = (event: SyncEvent) => void
 
 export class EventPublisher {
     private readonly listeners: Set<SyncEventListener> = new Set()
-    private logger = logger.child({ component: 'EventPublisher' })
 
     constructor(
         private readonly sseManager: SSEManager,
@@ -27,7 +26,7 @@ export class EventPublisher {
             try {
                 listener(enrichedEvent)
             } catch (error) {
-                this.logger.error({ error }, 'Listener error')
+                logger.error({ component: 'EventPublisher', error }, 'Listener error')
             }
         }
 

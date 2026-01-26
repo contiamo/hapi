@@ -4,20 +4,21 @@
  * These endpoints require CLI_API_TOKEN authentication
  */
 
-import type { Context, Hono } from 'hono'
+import type { Hono } from 'hono'
 import { z } from 'zod'
 import { getLogLevel, setGlobalLogLevel } from '../../lib/logger'
+import type { WebAppEnv } from '../middleware/auth'
 
 const LogLevelSchema = z.object({
     level: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal'])
 })
 
-export function registerAdminRoutes(app: Hono) {
+export function registerAdminRoutes(app: Hono<WebAppEnv>) {
     /**
      * GET /api/admin/log-level
      * Get current log level
      */
-    app.get('/api/admin/log-level', async (c: Context) => {
+    app.get('/api/admin/log-level', async (c) => {
         return c.json({
             level: getLogLevel()
         })
@@ -35,7 +36,7 @@ export function registerAdminRoutes(app: Hono) {
      *     -H "Content-Type: application/json" \
      *     -d '{"level":"debug"}'
      */
-    app.post('/api/admin/log-level', async (c: Context) => {
+    app.post('/api/admin/log-level', async (c) => {
         try {
             const body = await c.req.json()
             const parsed = LogLevelSchema.safeParse(body)

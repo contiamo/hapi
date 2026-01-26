@@ -6,8 +6,6 @@ import { safeJsonParse } from './json'
 import { updateVersionedField } from './versionedUpdates'
 import { logger } from '../lib/logger'
 
-const sessionLogger = logger.child({ component: 'SessionStore' })
-
 type DbSessionRow = {
     id: string
     tag: string | null
@@ -53,11 +51,11 @@ export function getOrCreateSession(
     agentState: unknown,
     namespace: string
 ): StoredSession {
-    sessionLogger.debug({ id, namespace }, 'Getting or creating session')
+    logger.debug({ component: 'SessionStore', id, namespace }, 'Getting or creating session')
 
     // Validate UUID format if id is provided
     if (id !== null && !isValidUUID(id)) {
-        sessionLogger.error({ id }, 'Invalid UUID format')
+        logger.error({ component: 'SessionStore', id }, 'Invalid UUID format')
         throw new Error(`Invalid session ID format: ${id}`)
     }
 
@@ -70,7 +68,8 @@ export function getOrCreateSession(
     ).get(sessionId, namespace) as DbSessionRow | undefined
 
     if (existing) {
-        sessionLogger.debug({
+        logger.debug({
+            component: 'SessionStore',
             id: existing.id,
             namespace: existing.namespace
         }, 'Found existing session')
@@ -79,12 +78,13 @@ export function getOrCreateSession(
 
     // CRITICAL ERROR HANDLING: If id was provided but not found, session doesn't exist
     if (id !== null) {
-        sessionLogger.error({ id, namespace }, 'Session not found')
+        logger.error({ component: 'SessionStore', id, namespace }, 'Session not found')
         throw new Error(`Session not found: ${id}`)
     }
 
     // Create new session with generated UUID
-    sessionLogger.info({
+    logger.info({
+        component: 'SessionStore',
         id: sessionId,
         namespace
     }, 'Creating new session')
@@ -117,7 +117,7 @@ export function getOrCreateSession(
         agent_state: agentStateJson
     })
 
-    sessionLogger.info({ id: sessionId }, 'New session created successfully')
+    logger.info({ component: 'SessionStore', id: sessionId }, 'New session created successfully')
 
     const row = getSession(db, sessionId)
     if (!row) {
