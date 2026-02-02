@@ -14,6 +14,7 @@ type UseVerticalDragHandlers = {
     onTouchStart: React.TouchEventHandler
     onTouchMove: React.TouchEventHandler
     onTouchEnd: React.TouchEventHandler
+    onTouchCancel: React.TouchEventHandler
 }
 
 export function useVerticalDrag(options: UseVerticalDragOptions): UseVerticalDragHandlers {
@@ -115,7 +116,10 @@ export function useVerticalDrag(options: UseVerticalDragOptions): UseVerticalDra
 
     const onTouchStart = useCallback<React.TouchEventHandler>((e) => {
         if (disabled) return
+        // Ignore multi-touch gestures
+        if (e.touches.length > 1) return
         const touch = e.touches[0]
+        if (!touch) return
 
         isDraggingRef.current = true
         hasPassedThresholdRef.current = false
@@ -126,11 +130,29 @@ export function useVerticalDrag(options: UseVerticalDragOptions): UseVerticalDra
     }, [disabled])
 
     const onTouchMove = useCallback<React.TouchEventHandler>((e) => {
+        if (!isDraggingRef.current) return
+        // Ignore multi-touch gestures
+        if (e.touches.length > 1) {
+            endDrag()
+            return
+        }
         const touch = e.touches[0]
+        if (!touch) return
+
         updateDrag(touch.clientY)
-    }, [updateDrag])
+
+        // Prevent default scrolling once we've passed threshold
+        // Note: We do this AFTER updateDrag to ensure the drag is processed first
+        if (hasPassedThresholdRef.current) {
+            e.preventDefault()
+        }
+    }, [updateDrag, endDrag])
 
     const onTouchEnd = useCallback<React.TouchEventHandler>(() => {
+        endDrag()
+    }, [endDrag])
+
+    const onTouchCancel = useCallback<React.TouchEventHandler>(() => {
         endDrag()
     }, [endDrag])
 
@@ -138,6 +160,7 @@ export function useVerticalDrag(options: UseVerticalDragOptions): UseVerticalDra
         onMouseDown,
         onTouchStart,
         onTouchMove,
-        onTouchEnd
+        onTouchEnd,
+        onTouchCancel
     }
 }

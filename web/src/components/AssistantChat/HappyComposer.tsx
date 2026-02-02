@@ -169,17 +169,38 @@ export function HappyComposer(props: {
     // Voice active check - disable mode switching during voice input
     const voiceActive = voiceStatus === 'connected'
 
-    // Constants for drag behavior
+    // Use visualViewport for better keyboard handling, fallback to window.innerHeight
+    const getViewportHeight = useCallback(() => {
+        return window.visualViewport?.height ?? window.innerHeight
+    }, [])
+
+    // Constants for drag behavior with snap points
     const MIN_EXPANDED_HEIGHT = 150
     const COLLAPSE_HEIGHT_THRESHOLD = 100 // collapse if height drops below this
     const VELOCITY_THRESHOLD = 0.5 // px/ms
-    const DEFAULT_EXPANDED_HEIGHT = Math.round(window.innerHeight / 3)
+    const SNAP_THRESHOLD = 40 // px distance to snap to nearest point
+
+    // Define snap points as fractions of viewport height
+    const getSnapPoints = useCallback(() => {
+        const vh = getViewportHeight()
+        return [
+            Math.round(vh * 0.33), // 1/3 of viewport
+            Math.round(vh * 0.5),  // 1/2 of viewport
+            Math.round(vh * 0.67)  // 2/3 of viewport
+        ].filter(h => h >= MIN_EXPANDED_HEIGHT)
+    }, [getViewportHeight])
+
+    const DEFAULT_EXPANDED_HEIGHT = getSnapPoints()[0] ?? Math.round(getViewportHeight() / 3)
 
     // Track the base height when drag starts (for calculating new height during drag)
     const dragStartHeightRef = useRef<number>(0)
     const dragStartModeRef = useRef<ComposerMode>('quick')
 
-    const dragHandlers = useVerticalDrag({
+    // Track double-tap for touch devices
+    const lastTapTimeRef = useRef<number>(0)
+    const lastTapTargetRef = useRef<EventTarget | null>(null)
+
+    const dragHandlers = useMemo(() => useVerticalDrag({
         disabled: voiceActive,
         threshold: 10,
         onDragStart: () => {
@@ -189,15 +210,17 @@ export function HappyComposer(props: {
             if (composerMode === 'expanded' && expandedHeight !== null) {
                 dragStartHeightRef.current = expandedHeight
             } else {
-                // Starting from quick mode - use default expanded height as base
-                dragStartHeightRef.current = Math.round(window.innerHeight / 3)
+                // Starting from quick mode - use first snap point
+                const snapPoints = getSnapPoints()
+                dragStartHeightRef.current = snapPoints[0] ?? Math.round(getViewportHeight() / 3)
             }
         },
         onDrag: (deltaY: number) => {
             // Calculate new height based on drag (negative deltaY = drag up = increase height)
+            const viewportHeight = getViewportHeight()
             const newHeight = Math.max(
                 0,
-                Math.min(window.innerHeight - 50, dragStartHeightRef.current - deltaY)
+                Math.min(viewportHeight - 50, dragStartHeightRef.current - deltaY)
             )
 
             if (dragStartModeRef.current === 'quick') {
@@ -233,24 +256,76 @@ export function HappyComposer(props: {
                     setComposerMode('quick')
                     setExpandedHeight(null)
                     haptic('light')
+                } else {
+                    // Snap to nearest snap point
+                    const snapPoints = getSnapPoints()
+                    let nearestSnap = currentHeight
+                    let minDistance = Number.POSITIVE_INFINITY
+
+                    for (const snapPoint of snapPoints) {
+                        const distance = Math.abs(currentHeight - snapPoint)
+                        if (distance < minDistance && distance < SNAP_THRESHOLD) {
+                            minDistance = distance
+                            nearestSnap = snapPoint
+                        }
+                    }
+
+                    if (nearestSnap !== currentHeight) {
+                        setExpandedHeight(nearestSnap)
+                        haptic('light')
+                    }
                 }
             } else if (composerMode === 'expanded') {
-                // Started from quick mode and expanded - give haptic feedback
+                // Started from quick mode and expanded - snap to nearest point
+                const snapPoints = getSnapPoints()
+                const currentHeight = expandedHeight ?? 0
+                let nearestSnap = snapPoints[0] ?? currentHeight
+
+                for (const snapPoint of snapPoints) {
+                    if (Math.abs(currentHeight - snapPoint) < Math.abs(currentHeight - nearestSnap)) {
+                        nearestSnap = snapPoint
+                    }
+                }
+
+                setExpandedHeight(nearestSnap)
                 haptic('light')
             }
 
             // Keep focus on textarea
             setTimeout(() => textareaRef.current?.focus(), 0)
         }
-    })
+    }), [voiceActive, composerMode, expandedHeight, getViewportHeight, getSnapPoints, haptic])
 
-    // Double-click/tap handler to collapse expanded mode
+    // Double-click handler for desktop
     const handleDragHandleDoubleClick = useCallback(() => {
         if (composerMode === 'expanded') {
             setComposerMode('quick')
             setExpandedHeight(null)
             haptic('light')
             setTimeout(() => textareaRef.current?.focus(), 0)
+        }
+    }, [composerMode, haptic])
+
+    // Double-tap handler for touch devices
+    const handleDragHandleTap = useCallback((e: React.TouchEvent) => {
+        const now = Date.now()
+        const timeSinceLastTap = now - lastTapTimeRef.current
+        const isSameTarget = e.target === lastTapTargetRef.current
+
+        // Double-tap detected: two taps within 300ms on same element
+        if (timeSinceLastTap < 300 && timeSinceLastTap > 0 && isSameTarget && composerMode === 'expanded') {
+            e.preventDefault()
+            setComposerMode('quick')
+            setExpandedHeight(null)
+            haptic('light')
+            setTimeout(() => textareaRef.current?.focus(), 0)
+            // Reset to prevent triple-tap from triggering another collapse
+            lastTapTimeRef.current = 0
+            lastTapTargetRef.current = null
+        } else {
+            // Record this tap
+            lastTapTimeRef.current = now
+            lastTapTargetRef.current = e.target
         }
     }, [composerMode, haptic])
 
@@ -394,7 +469,9 @@ export function HappyComposer(props: {
             setComposerMode(prev => {
                 const newMode = prev === 'quick' ? 'expanded' : 'quick'
                 if (newMode === 'expanded') {
-                    setExpandedHeight(DEFAULT_EXPANDED_HEIGHT)
+                    // Use first snap point (smallest)
+                    const snapPoints = getSnapPoints()
+                    setExpandedHeight(snapPoints[0] ?? Math.round(getViewportHeight() / 3))
                 } else {
                     setExpandedHeight(null)
                 }
@@ -417,7 +494,8 @@ export function HappyComposer(props: {
         permissionModes,
         haptic,
         voiceActive,
-        DEFAULT_EXPANDED_HEIGHT
+        getViewportHeight,
+        getSnapPoints
     ])
 
     useEffect(() => {
@@ -434,6 +512,26 @@ export function HappyComposer(props: {
         window.addEventListener('keydown', handleGlobalKeyDown)
         return () => window.removeEventListener('keydown', handleGlobalKeyDown)
     }, [modelMode, onModelModeChange, haptic, agentFlavor])
+
+    // Handle keyboard open/close by adjusting expanded height if it would go off-screen
+    useEffect(() => {
+        if (!window.visualViewport || composerMode !== 'expanded' || expandedHeight === null) {
+            return
+        }
+
+        const handleViewportResize = () => {
+            const vh = window.visualViewport?.height ?? window.innerHeight
+            const maxHeight = vh - 50 // Leave 50px for header/content
+
+            // If current height would be off-screen, shrink to fit
+            if (expandedHeight > maxHeight) {
+                setExpandedHeight(maxHeight)
+            }
+        }
+
+        window.visualViewport.addEventListener('resize', handleViewportResize)
+        return () => window.visualViewport?.removeEventListener('resize', handleViewportResize)
+    }, [composerMode, expandedHeight])
 
     const handleChange = useCallback((e: ReactChangeEvent<HTMLTextAreaElement>) => {
         const selection = {
@@ -652,11 +750,22 @@ export function HappyComposer(props: {
                         )}
 
                         <div className={`overflow-hidden rounded-[20px] bg-[var(--app-secondary-bg)] ${isExpanded ? 'flex-1 flex flex-col min-h-0' : ''}`}>
-                            {/* Drag handle */}
+                            {/* Drag handle - larger touch target for mobile */}
                             <div
-                                className={`flex justify-center py-2 touch-none select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+                                className={`flex justify-center items-center py-3 touch-none select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
                                 onDoubleClick={handleDragHandleDoubleClick}
-                                {...dragHandlers}
+                                onTouchEnd={(e) => {
+                                    // Handle double-tap before drag handler processes it
+                                    if (!isDragging) {
+                                        handleDragHandleTap(e)
+                                    }
+                                    // Still call drag handler to clean up drag state
+                                    dragHandlers.onTouchEnd(e)
+                                }}
+                                onMouseDown={dragHandlers.onMouseDown}
+                                onTouchStart={dragHandlers.onTouchStart}
+                                onTouchMove={dragHandlers.onTouchMove}
+                                onTouchCancel={dragHandlers.onTouchCancel}
                             >
                                 <div
                                     className={`w-10 h-1 rounded-full transition-colors ${
