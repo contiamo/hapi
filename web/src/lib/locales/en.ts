@@ -64,6 +64,8 @@ export default {
   'session.action.resume': 'Resume',
   'session.action.delete': 'Delete',
   'session.action.copy': 'Copy',
+  'session.action.fork': 'Fork',
+  'session.action.reload': 'Reload',
 
   // Dialogs
   'dialog.rename.title': 'Rename Session',
@@ -89,6 +91,11 @@ export default {
   'dialog.bulkArchive.partialSuccess': 'Archived {succeeded} sessions ({failed} failed)',
   'dialog.resume.success': 'Session resumed',
   'dialog.resume.error': 'Failed to resume session',
+  'dialog.fork.success': 'Session forked successfully',
+  'dialog.fork.error': 'Failed to fork session',
+  'dialog.reload.success': 'Session reloaded successfully',
+  'dialog.reload.error': 'Failed to reload session',
+  'dialog.reload.busyConfirm': 'Session is busy. Force reload anyway? This will interrupt the current operation.',
   'dialog.error.default': 'Operation failed. Please try again.',
 
   // Common buttons

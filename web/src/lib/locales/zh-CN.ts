@@ -64,6 +64,8 @@ export default {
   'session.action.resume': '恢复',
   'session.action.delete': '删除',
   'session.action.copy': '复制',
+  'session.action.fork': '分支',
+  'session.action.reload': '重载',
 
   // Dialogs
   'dialog.rename.title': '重命名会话',
@@ -91,6 +93,11 @@ export default {
   'dialog.bulkArchive.partialSuccess': '归档 {succeeded} 个会话（{failed} 个失败）',
   'dialog.resume.success': '会话已恢复',
   'dialog.resume.error': '会话恢复失败',
+  'dialog.fork.success': '会话已成功分支',
+  'dialog.fork.error': '会话分支失败',
+  'dialog.reload.success': '会话已成功重载',
+  'dialog.reload.error': '会话重载失败',
+  'dialog.reload.busyConfirm': '会话正忙。强制重载？这将中断当前操作。',
   'dialog.error.default': '操作失败，请重试。',
 
   // Common buttons
