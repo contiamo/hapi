@@ -28,8 +28,13 @@ import { StatusBar } from '@/components/AssistantChat/StatusBar'
 import { ComposerButtons } from '@/components/AssistantChat/ComposerButtons'
 import { AttachmentItem } from '@/components/AssistantChat/AttachmentItem'
 import { useTranslation } from '@/lib/use-translation'
+import { CloseIcon } from '@/components/icons'
 
 type ComposerMode = 'quick' | 'expanded'
+type SnapIndex = 0 | 1 | 2
+
+// Snap points as fractions of viewport height
+const SNAP_POINTS = [0.2, 0.5, 1.0] as const
 
 export interface TextInputState {
     text: string
@@ -118,8 +123,9 @@ export function HappyComposer(props: {
     const [isSwitching, setIsSwitching] = useState(false)
     const [showContinueHint, setShowContinueHint] = useState(false)
     const [composerMode, setComposerMode] = useState<ComposerMode>('quick')
-    const [expandedHeight, setExpandedHeight] = useState<number | null>(null)
+    const [snapIndex, setSnapIndex] = useState<SnapIndex>(0)
     const [isDragging, setIsDragging] = useState(false)
+    const [dragPreviewHeight, setDragPreviewHeight] = useState<number | null>(null)
 
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const prevControlledByUser = useRef(controlledByUser)
@@ -170,14 +176,50 @@ export function HappyComposer(props: {
     const voiceActive = voiceStatus === 'connected'
 
     // Constants for drag behavior
-    const MIN_EXPANDED_HEIGHT = 150
-    const COLLAPSE_HEIGHT_THRESHOLD = 100 // collapse if height drops below this
-    const VELOCITY_THRESHOLD = 0.5 // px/ms
-    const DEFAULT_EXPANDED_HEIGHT = Math.round(window.innerHeight / 3)
+    const VELOCITY_THRESHOLD = 0.5 // px/ms - threshold for flick gestures
+    const DRAG_THRESHOLD_TO_EXPAND = 50 // px - minimum drag from quick mode to expand
 
-    // Track the base height when drag starts (for calculating new height during drag)
+    // Track the starting state when drag begins
     const dragStartHeightRef = useRef<number>(0)
     const dragStartModeRef = useRef<ComposerMode>('quick')
+    const dragStartSnapIndexRef = useRef<SnapIndex>(0)
+    const dragHandleRef = useRef<HTMLDivElement>(null)
+
+    // Calculate current viewport height (accounts for keyboard)
+    const getViewportHeight = useCallback(() => {
+        return window.visualViewport?.height ?? window.innerHeight
+    }, [])
+
+    // Calculate height for a given snap index
+    // Leave 60px margin at top for close button visibility, and respect safe area at bottom
+    const getSnapHeight = useCallback((index: SnapIndex) => {
+        const vh = getViewportHeight()
+        const maxHeight = vh - 60 // Keep 60px visible at top for close button/status
+        const targetHeight = Math.round(vh * SNAP_POINTS[index])
+        return Math.min(targetHeight, maxHeight)
+    }, [getViewportHeight])
+
+    // Get the current expanded height based on snap index
+    const expandedHeight = composerMode === 'expanded' ? getSnapHeight(snapIndex) : null
+
+    // Force re-render when viewport changes (keyboard open/close)
+    const [, forceUpdate] = useState(0)
+    useEffect(() => {
+        if (!window.visualViewport) return
+
+        const handleViewportChange = () => {
+            // Force re-render to recalculate expandedHeight with new viewport
+            forceUpdate(n => n + 1)
+        }
+
+        window.visualViewport.addEventListener('resize', handleViewportChange)
+        window.visualViewport.addEventListener('scroll', handleViewportChange)
+
+        return () => {
+            window.visualViewport?.removeEventListener('resize', handleViewportChange)
+            window.visualViewport?.removeEventListener('scroll', handleViewportChange)
+        }
+    }, [])
 
     const dragHandlers = useVerticalDrag({
         disabled: voiceActive,
@@ -185,74 +227,127 @@ export function HappyComposer(props: {
         onDragStart: () => {
             setIsDragging(true)
             dragStartModeRef.current = composerMode
-            // Store the starting height
-            if (composerMode === 'expanded' && expandedHeight !== null) {
-                dragStartHeightRef.current = expandedHeight
+            dragStartSnapIndexRef.current = snapIndex
+            // Store the starting height for calculating drag progress
+            if (composerMode === 'expanded') {
+                dragStartHeightRef.current = getSnapHeight(snapIndex)
             } else {
-                // Starting from quick mode - use default expanded height as base
-                dragStartHeightRef.current = Math.round(window.innerHeight / 3)
+                // Starting from quick mode - use first snap point as reference
+                dragStartHeightRef.current = getSnapHeight(0)
             }
         },
         onDrag: (deltaY: number) => {
-            // Calculate new height based on drag (negative deltaY = drag up = increase height)
+            const vh = getViewportHeight()
+            // Calculate preview height (drag up = negative deltaY = increase height)
             const newHeight = Math.max(
-                0,
-                Math.min(window.innerHeight - 50, dragStartHeightRef.current - deltaY)
+                vh * SNAP_POINTS[0] * 0.5, // Minimum preview height
+                Math.min(vh, dragStartHeightRef.current - deltaY)
             )
 
-            if (dragStartModeRef.current === 'quick') {
-                // From quick mode: expand once we have meaningful height
-                if (newHeight >= MIN_EXPANDED_HEIGHT) {
-                    if (composerMode !== 'expanded') {
-                        setComposerMode('expanded')
-                    }
-                    setExpandedHeight(newHeight)
+            // If starting from quick mode, expand once drag threshold is reached
+            if (dragStartModeRef.current === 'quick' && -deltaY > DRAG_THRESHOLD_TO_EXPAND) {
+                if (composerMode !== 'expanded') {
+                    setComposerMode('expanded')
+                    setSnapIndex(0)
                 }
-            } else {
-                // From expanded mode: adjust height, potentially collapse
-                setExpandedHeight(Math.max(MIN_EXPANDED_HEIGHT, newHeight))
+                setDragPreviewHeight(newHeight)
+            } else if (dragStartModeRef.current === 'expanded') {
+                // Already expanded - update preview height
+                setDragPreviewHeight(newHeight)
             }
         },
         onDragEnd: (totalDeltaY: number, velocity: number) => {
             setIsDragging(false)
+            setDragPreviewHeight(null)
 
-            // Only consider collapse if we started from expanded mode
-            if (dragStartModeRef.current === 'expanded') {
-                const currentHeight = expandedHeight ?? 0
+            const vh = getViewportHeight()
 
-                // Collapse conditions:
-                // 1. Height dropped below threshold (dragged down significantly)
-                // 2. Fast downward velocity (quick flick down)
-                // 3. Dragged down past 50% of starting height
-                const shouldCollapse =
-                    currentHeight < COLLAPSE_HEIGHT_THRESHOLD ||
-                    velocity > VELOCITY_THRESHOLD ||
-                    (totalDeltaY > 0 && currentHeight < dragStartHeightRef.current * 0.5)
+            if (dragStartModeRef.current === 'quick') {
+                // Started from quick mode
+                if (composerMode === 'expanded') {
+                    // Successfully expanded - determine which snap point
+                    const draggedHeight = -totalDeltaY
+                    const targetSnapIndex = findTargetSnapIndex(draggedHeight, velocity, vh)
+                    setSnapIndex(targetSnapIndex)
+                    haptic('light')
+                }
+            } else {
+                // Started from expanded mode
+                const startHeight = dragStartHeightRef.current
+                const currentHeight = startHeight - totalDeltaY
+
+                // Check for collapse (fast downward flick or dragged below threshold)
+                const collapseThreshold = vh * SNAP_POINTS[0] * 0.5
+                const shouldCollapse = velocity > VELOCITY_THRESHOLD || currentHeight < collapseThreshold
 
                 if (shouldCollapse) {
                     setComposerMode('quick')
-                    setExpandedHeight(null)
+                    setSnapIndex(0)
                     haptic('light')
+                } else {
+                    // Find target snap point based on current position and velocity
+                    const targetSnapIndex = findTargetSnapIndex(currentHeight, -velocity, vh)
+                    setSnapIndex(targetSnapIndex)
+                    if (targetSnapIndex !== dragStartSnapIndexRef.current) {
+                        haptic('light')
+                    }
                 }
-            } else if (composerMode === 'expanded') {
-                // Started from quick mode and expanded - give haptic feedback
-                haptic('light')
             }
 
-            // Keep focus on textarea
-            setTimeout(() => textareaRef.current?.focus(), 0)
+            // Focus textarea after drag ends (with Android-friendly timing)
+            focusTextarea()
         }
     })
+
+    // Find the best snap point based on current height and velocity
+    const findTargetSnapIndex = (height: number, velocity: number, vh: number): SnapIndex => {
+        // Velocity-based snap: if flicking up/down quickly, go to next/prev snap
+        if (Math.abs(velocity) > VELOCITY_THRESHOLD) {
+            const currentIndex = dragStartSnapIndexRef.current
+            if (velocity < 0 && currentIndex < 2) {
+                // Flicking up - go to higher snap
+                return (currentIndex + 1) as SnapIndex
+            } else if (velocity > 0 && currentIndex > 0) {
+                // Flicking down - go to lower snap
+                return (currentIndex - 1) as SnapIndex
+            }
+        }
+
+        // Position-based snap: find nearest snap point
+        let nearestIndex: SnapIndex = 0
+        let nearestDistance = Infinity
+
+        for (let i = 0; i < SNAP_POINTS.length; i++) {
+            const snapHeight = vh * SNAP_POINTS[i]
+            const distance = Math.abs(height - snapHeight)
+            if (distance < nearestDistance) {
+                nearestDistance = distance
+                nearestIndex = i as SnapIndex
+            }
+        }
+
+        return nearestIndex
+    }
+
+    // Focus textarea with Android-friendly timing
+    const focusTextarea = useCallback(() => {
+        requestAnimationFrame(() => {
+            setTimeout(() => {
+                if (!textareaRef.current) return
+                textareaRef.current.focus({ preventScroll: true })
+            }, 100)
+        })
+    }, [])
 
     // Double-click/tap handler to collapse expanded mode
     const handleDragHandleDoubleClick = useCallback(() => {
         if (composerMode === 'expanded') {
             setComposerMode('quick')
-            setExpandedHeight(null)
+            setSnapIndex(0)
             haptic('light')
-            setTimeout(() => textareaRef.current?.focus(), 0)
+            focusTextarea()
         }
-    }, [composerMode, haptic])
+    }, [composerMode, haptic, focusTextarea])
 
     const handleSuggestionSelect = useCallback((index: number) => {
         const suggestion = suggestions[index]
@@ -391,15 +486,13 @@ export function HappyComposer(props: {
         // Cmd/Ctrl+Shift+Enter toggles expanded mode
         if (key === 'Enter' && (e.metaKey || e.ctrlKey) && e.shiftKey && !voiceActive) {
             e.preventDefault()
-            setComposerMode(prev => {
-                const newMode = prev === 'quick' ? 'expanded' : 'quick'
-                if (newMode === 'expanded') {
-                    setExpandedHeight(DEFAULT_EXPANDED_HEIGHT)
-                } else {
-                    setExpandedHeight(null)
-                }
-                return newMode
-            })
+            if (composerMode === 'quick') {
+                setComposerMode('expanded')
+                setSnapIndex(1) // Start at middle snap point (50%)
+            } else {
+                setComposerMode('quick')
+                setSnapIndex(0)
+            }
             haptic('light')
             return
         }
@@ -417,7 +510,7 @@ export function HappyComposer(props: {
         permissionModes,
         haptic,
         voiceActive,
-        DEFAULT_EXPANDED_HEIGHT
+        composerMode
     ])
 
     useEffect(() => {
@@ -624,15 +717,43 @@ export function HappyComposer(props: {
 
     const isExpanded = composerMode === 'expanded'
 
+    // Calculate the display height (preview during drag, snap height otherwise)
+    const displayHeight = isDragging && dragPreviewHeight !== null
+        ? dragPreviewHeight
+        : expandedHeight
+
+    const expandedStyle = useMemo(() => {
+        if (!isExpanded || !displayHeight) return undefined
+        return {
+            height: displayHeight,
+            // Disable transition during drag for responsive feel
+            transition: isDragging ? 'none' : 'height 0.2s ease-out'
+        }
+    }, [isExpanded, displayHeight, isDragging])
+
+    // Close handler for the close button
+    const handleClose = useCallback(() => {
+        setComposerMode('quick')
+        setSnapIndex(0)
+        haptic('light')
+        focusTextarea()
+    }, [haptic, focusTextarea])
+
     return (
         <>
             <div
                 className={
                     isExpanded
-                        ? `fixed inset-x-0 bottom-0 z-50 px-3 ${bottomPaddingClass} pt-2 bg-[var(--app-bg)] composer-expanding`
+                        ? `fixed inset-x-0 z-50 px-3 pt-2 bg-[var(--app-bg)] composer-expanding`
                         : `px-3 ${bottomPaddingClass} pt-2 bg-[var(--app-bg)]`
                 }
-                style={isExpanded && expandedHeight ? { height: expandedHeight } : undefined}
+                style={{
+                    ...(isExpanded ? {
+                        bottom: 0,
+                        paddingBottom: 'max(12px, env(safe-area-inset-bottom, 12px))'
+                    } : {}),
+                    ...expandedStyle
+                }}
             >
                 <div className={`mx-auto w-full max-w-content ${isExpanded ? 'h-full flex flex-col' : ''}`}>
                     <ComposerPrimitive.Root className={`relative ${isExpanded ? 'flex-1 flex flex-col min-h-0' : ''}`} onSubmit={handleSubmit}>
@@ -652,19 +773,33 @@ export function HappyComposer(props: {
                         )}
 
                         <div className={`overflow-hidden rounded-[20px] bg-[var(--app-secondary-bg)] ${isExpanded ? 'flex-1 flex flex-col min-h-0' : ''}`}>
-                            {/* Drag handle */}
-                            <div
-                                className={`flex justify-center py-2 touch-none select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
-                                onDoubleClick={handleDragHandleDoubleClick}
-                                {...dragHandlers}
-                            >
+                            {/* Drag handle with close button */}
+                            <div className="relative">
                                 <div
-                                    className={`w-10 h-1 rounded-full transition-colors ${
-                                        isExpanded
-                                            ? 'bg-[var(--app-link)]'
-                                            : 'bg-[var(--app-hint)]/40'
-                                    }`}
-                                />
+                                    ref={dragHandleRef}
+                                    className={`flex justify-center py-4 -my-2 touch-none select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+                                    onDoubleClick={handleDragHandleDoubleClick}
+                                    {...dragHandlers}
+                                >
+                                    <div
+                                        className={`w-12 h-1.5 rounded-full transition-colors ${
+                                            isExpanded
+                                                ? 'bg-[var(--app-link)]'
+                                                : 'bg-[var(--app-hint)]/40'
+                                        }`}
+                                    />
+                                </div>
+                                {/* Close button - visible when expanded */}
+                                {isExpanded && (
+                                    <button
+                                        type="button"
+                                        onClick={handleClose}
+                                        className="absolute right-2 top-1 p-1.5 rounded-full hover:bg-[var(--app-bg)] text-[var(--app-hint)] hover:text-[var(--app-fg)] transition-colors"
+                                        aria-label="Close expanded composer"
+                                    >
+                                        <CloseIcon className="h-4 w-4" />
+                                    </button>
+                                )}
                             </div>
 
                             {attachments.length > 0 ? (
