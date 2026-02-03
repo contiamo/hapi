@@ -529,7 +529,7 @@ export function HappyComposer(props: {
             }
         }
 
-        window.visualViewport.addEventListener('resize', handleViewportResize)
+        window.visualViewport?.addEventListener('resize', handleViewportResize)
         return () => window.visualViewport?.removeEventListener('resize', handleViewportResize)
     }, [composerMode, expandedHeight])
 

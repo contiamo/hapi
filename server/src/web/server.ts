@@ -47,11 +47,18 @@ function findWebappDistDir(): { distDir: string; indexHtmlPath: string } {
 }
 
 function serveEmbeddedAsset(asset: EmbeddedWebAsset): Response {
-    return new Response(Bun.file(asset.sourcePath), {
-        headers: {
-            'Content-Type': asset.mimeType
-        }
-    })
+    const headers: Record<string, string> = {
+        'Content-Type': asset.mimeType
+    }
+
+    // Prevent caching for HTML files
+    if (asset.mimeType === 'text/html') {
+        headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        headers['Pragma'] = 'no-cache'
+        headers['Expires'] = '0'
+    }
+
+    return new Response(Bun.file(asset.sourcePath), { headers })
 }
 
 function createWebApp(options: {
@@ -161,7 +168,15 @@ from GitHub Pages instead of through the relay tunnel.
                 return
             }
 
-            return serveEmbeddedAsset(indexHtmlAsset)
+            // Serve index.html with no-cache headers
+            return new Response(Bun.file(indexHtmlAsset.sourcePath), {
+                headers: {
+                    'Content-Type': indexHtmlAsset.mimeType,
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                }
+            })
         })
 
         return app
@@ -196,7 +211,13 @@ from GitHub Pages instead of through the relay tunnel.
             return
         }
 
-        return await serveStatic({ root: distDir, path: 'index.html' })(c, next)
+        const staticResponse = await serveStatic({ root: distDir, path: 'index.html' })(c, next)
+        if (staticResponse) {
+            staticResponse.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+            staticResponse.headers.set('Pragma', 'no-cache')
+            staticResponse.headers.set('Expires', '0')
+        }
+        return staticResponse
     })
 
     return app

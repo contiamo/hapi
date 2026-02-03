@@ -8,6 +8,14 @@ interface PWAUpdateContextValue {
         isDirty: boolean
         gitDescribe: string
     }
+    embeddedVersion: {
+        sha: string
+        shortSha: string
+        buildTime: string
+        isDirty: boolean
+        gitDescribe: string
+    } | null
+    isOutOfSync: boolean
     checkForUpdate: () => Promise<void>
     forceReload: () => void
     isChecking: boolean
@@ -27,25 +35,60 @@ export function PWAUpdateProvider({ children }: PWAUpdateProviderProps) {
         isDirty: false,
         gitDescribe: 'unknown'
     })
+    const [embeddedVersion, setEmbeddedVersion] = useState<typeof version | null>(null)
+    const [isOutOfSync, setIsOutOfSync] = useState(false)
     const [isChecking, setIsChecking] = useState(false)
 
     useEffect(() => {
-        // Get version from HTML meta tags
+        // First, read embedded version from meta tags
         const versionMeta = document.querySelector('meta[name="app-version"]')
         const shortVersionMeta = document.querySelector('meta[name="app-version-short"]')
         const buildTimeMeta = document.querySelector('meta[name="app-build-time"]')
         const dirtyMeta = document.querySelector('meta[name="app-version-dirty"]')
         const describeMeta = document.querySelector('meta[name="app-version-describe"]')
 
-        if (versionMeta && shortVersionMeta && buildTimeMeta) {
-            setVersion({
-                sha: versionMeta.getAttribute('content') || 'unknown',
-                shortSha: shortVersionMeta.getAttribute('content') || 'unknown',
-                buildTime: buildTimeMeta.getAttribute('content') || 'unknown',
-                isDirty: dirtyMeta?.getAttribute('content') === 'true',
-                gitDescribe: describeMeta?.getAttribute('content') || 'unknown'
-            })
+        const embedded = {
+            sha: versionMeta?.getAttribute('content') || 'unknown',
+            shortSha: shortVersionMeta?.getAttribute('content') || 'unknown',
+            buildTime: buildTimeMeta?.getAttribute('content') || 'unknown',
+            isDirty: dirtyMeta?.getAttribute('content') === 'true',
+            gitDescribe: describeMeta?.getAttribute('content') || 'unknown'
         }
+        setEmbeddedVersion(embedded)
+
+        // Then fetch current version from API
+        fetch('/api/version')
+            .then(res => {
+                if (!res.ok) throw new Error('Failed to fetch version')
+                return res.json()
+            })
+            .then((data: {
+                sha: string
+                shortSha: string
+                branch: string
+                isDirty: boolean
+                gitDescribe: string
+                commitTime: string
+                buildTime: string
+            }) => {
+                const serverVersion = {
+                    sha: data.sha,
+                    shortSha: data.shortSha,
+                    buildTime: data.buildTime,
+                    isDirty: data.isDirty,
+                    gitDescribe: data.gitDescribe
+                }
+                setVersion(serverVersion)
+
+                // Compare versions - if shortSha differs, we're out of sync
+                const outOfSync = embedded.shortSha !== data.shortSha && embedded.shortSha !== 'unknown'
+                setIsOutOfSync(outOfSync)
+            })
+            .catch(() => {
+                // Offline - just use embedded version
+                setVersion(embedded)
+                setIsOutOfSync(false)
+            })
     }, [])
 
     const checkForUpdate = async () => {
@@ -80,6 +123,8 @@ export function PWAUpdateProvider({ children }: PWAUpdateProviderProps) {
 
     const value: PWAUpdateContextValue = {
         version,
+        embeddedVersion,
+        isOutOfSync,
         checkForUpdate,
         forceReload,
         isChecking

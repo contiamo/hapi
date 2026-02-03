@@ -349,7 +349,7 @@ export default function FilesPage() {
                         )
                     ) : (
                         <div>
-                            {gitStatus?.stagedFiles.length ? (
+                            {gitStatus?.stagedFiles?.length ? (
                                 <div>
                                     <div className="border-b border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2 text-xs font-semibold text-[var(--app-git-staged-color)]">
                                         Staged Changes ({gitStatus.stagedFiles.length})
@@ -359,13 +359,13 @@ export default function FilesPage() {
                                             key={`staged-${file.fullPath}-${index}`}
                                             file={file}
                                             onOpen={() => handleOpenFile(file.fullPath, file.isStaged)}
-                                            showDivider={index < gitStatus.stagedFiles.length - 1 || gitStatus.unstagedFiles.length > 0}
+                                            showDivider={index < gitStatus.stagedFiles.length - 1 || (gitStatus.unstagedFiles?.length ?? 0) > 0}
                                         />
                                     ))}
                                 </div>
                             ) : null}
 
-                            {gitStatus?.unstagedFiles.length ? (
+                            {gitStatus?.unstagedFiles?.length ? (
                                 <div>
                                     <div className="border-b border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2 text-xs font-semibold text-[var(--app-git-unstaged-color)]">
                                         Unstaged Changes ({gitStatus.unstagedFiles.length})
@@ -381,7 +381,7 @@ export default function FilesPage() {
                                 </div>
                             ) : null}
 
-                            {gitStatus && gitStatus.stagedFiles.length === 0 && gitStatus.unstagedFiles.length === 0 ? (
+                            {gitStatus && (gitStatus.stagedFiles?.length ?? 0) === 0 && (gitStatus.unstagedFiles?.length ?? 0) === 0 ? (
                                 <div className="p-6 text-sm text-[var(--app-hint)]">
                                     No changes detected. Use search to browse files.
                                 </div>

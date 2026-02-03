@@ -97,7 +97,7 @@ export default function SettingsPage() {
     const [isVoiceOpen, setIsVoiceOpen] = useState(false)
     const containerRef = useRef<HTMLDivElement>(null)
     const voiceContainerRef = useRef<HTMLDivElement>(null)
-    const { version, checkForUpdate, forceReload, isChecking } = usePWAUpdate()
+    const { version, embeddedVersion, isOutOfSync, checkForUpdate, forceReload, isChecking } = usePWAUpdate()
     const toast = useSimpleToast()
 
     // Voice language state - read from localStorage
@@ -327,11 +327,40 @@ export default function SettingsPage() {
                             App Version
                         </div>
 
+                        {/* Add warning if versions are out of sync */}
+                        {isOutOfSync && embeddedVersion && (
+                            <div className="mx-3 mt-2 mb-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                                <div className="flex items-start gap-2">
+                                    <svg className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                    <div className="flex-1 text-sm">
+                                        <div className="font-semibold text-amber-800 dark:text-amber-300 mb-1">
+                                            Update Available
+                                        </div>
+                                        <div className="text-amber-700 dark:text-amber-400">
+                                            Your app is running version <code className="px-1 py-0.5 rounded bg-amber-500/20 font-mono text-xs">{embeddedVersion.shortSha}</code> but server has <code className="px-1 py-0.5 rounded bg-amber-500/20 font-mono text-xs">{version.shortSha}</code>.
+                                            Use Force Reload below to update.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Git describe display (primary version string) */}
                         <div className="px-3 py-3 flex items-center justify-between">
                             <span className="text-[var(--app-fg)]">Version</span>
                             <div className="flex items-center gap-2">
-                                <span className="text-[var(--app-hint)] font-mono text-sm">{version.gitDescribe}</span>
+                                <div className="text-right">
+                                    <div className="text-[var(--app-hint)] font-mono text-sm">
+                                        {version.gitDescribe}
+                                    </div>
+                                    {isOutOfSync && embeddedVersion && (
+                                        <div className="text-xs text-amber-600 dark:text-amber-400">
+                                            Cached: {embeddedVersion.gitDescribe}
+                                        </div>
+                                    )}
+                                </div>
                                 {version.isDirty && (
                                     <span
                                         className="px-1.5 py-0.5 text-xs font-semibold rounded bg-amber-500/20 text-amber-600 dark:text-amber-400"
@@ -346,17 +375,33 @@ export default function SettingsPage() {
                         {/* SHA display (for reference) */}
                         <div className="px-3 py-3 flex items-center justify-between border-t border-[var(--app-divider)]">
                             <span className="text-[var(--app-fg)]">Commit</span>
-                            <span className="text-[var(--app-hint)] font-mono text-sm">{version.shortSha}</span>
+                            <div className="text-right">
+                                <div className="text-[var(--app-hint)] font-mono text-sm">
+                                    {version.shortSha}
+                                </div>
+                                {isOutOfSync && embeddedVersion && (
+                                    <div className="text-xs text-amber-600 dark:text-amber-400">
+                                        Cached: {embeddedVersion.shortSha}
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         {/* Build time display */}
                         <div className="px-3 py-3 flex items-center justify-between border-t border-[var(--app-divider)]">
                             <span className="text-[var(--app-fg)]">Built</span>
-                            <span className="text-[var(--app-hint)] font-mono text-sm">
-                                {version.buildTime !== 'unknown'
-                                    ? new Date(version.buildTime).toLocaleString()
-                                    : 'unknown'}
-                            </span>
+                            <div className="text-right">
+                                <div className="text-[var(--app-hint)] font-mono text-sm">
+                                    {version.buildTime !== 'unknown'
+                                        ? new Date(version.buildTime).toLocaleString()
+                                        : 'unknown'}
+                                </div>
+                                {isOutOfSync && embeddedVersion && embeddedVersion.buildTime !== 'unknown' && (
+                                    <div className="text-xs text-amber-600 dark:text-amber-400">
+                                        Cached: {new Date(embeddedVersion.buildTime).toLocaleString()}
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         {/* Check for updates button */}
@@ -376,10 +421,16 @@ export default function SettingsPage() {
                         <button
                             type="button"
                             onClick={handleForceReload}
-                            className="flex w-full items-center justify-between px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]"
+                            className={`flex w-full items-center justify-between px-3 py-3 text-left transition-colors ${
+                                isOutOfSync
+                                    ? 'bg-amber-500/10 hover:bg-amber-500/20 border-t border-amber-500/30'
+                                    : 'hover:bg-[var(--app-subtle-bg)]'
+                            }`}
                         >
-                            <span className="text-[var(--app-fg)]">Force Reload</span>
-                            <ChevronRightIcon className="text-[var(--app-hint)]" />
+                            <span className={isOutOfSync ? 'text-amber-700 dark:text-amber-300 font-semibold' : 'text-[var(--app-fg)]'}>
+                                Force Reload {isOutOfSync && '(Update Available)'}
+                            </span>
+                            <ChevronRightIcon className={isOutOfSync ? 'text-amber-600' : 'text-[var(--app-hint)]'} />
                         </button>
                     </div>
                 </div>

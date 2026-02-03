@@ -39,7 +39,7 @@ function getConnectionStatus(
     voiceStatus: ConversationStatus | undefined,
     t: (key: string) => string
 ): { text: string; color: string; dotColor: string; isPulsing: boolean } {
-    const hasPermissions = agentState?.requests && Object.keys(agentState.requests).length > 0
+    const hasPermissions = Object.keys(agentState?.requests ?? {}).length > 0
 
     // Voice connecting takes priority
     if (voiceStatus === 'connecting') {

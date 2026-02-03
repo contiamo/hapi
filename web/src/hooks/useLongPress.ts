@@ -73,7 +73,9 @@ export function useLongPress(options: UseLongPressOptions): UseLongPressHandlers
     }, [handleEnd])
 
     const onTouchStart = useCallback<React.TouchEventHandler>((e) => {
+        if (!e.touches) return
         const touch = e.touches[0]
+        if (!touch) return
         startTimer(touch.clientX, touch.clientY)
     }, [startTimer])
 

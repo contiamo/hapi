@@ -177,7 +177,7 @@ function reconcileBlock(block: ChatBlock, prevById: ChatBlocksById): ChatBlock {
             ? block
             : { ...block, children: nextChildren }
 
-        if (prev && prev.kind === 'tool-call') {
+        if (prev && prev.kind === 'tool-call' && prev.children) {
             const childrenSame = prev.children.length === nextChildren.length
                 && prev.children.every((child, idx) => child === nextChildren[idx])
             if (areToolCallsEqual(prev, nextBlock, childrenSame)) {

@@ -115,6 +115,22 @@ export function upsertMessagesInCache(
 
     const pages = data.pages.slice()
     const first = pages[0]
+    if (!first) {
+        return {
+            pages: [
+                {
+                    messages: mergedIncoming,
+                    page: {
+                        limit: 50,
+                        beforeSeq: null,
+                        nextBeforeSeq: null,
+                        hasMore: false,
+                    },
+                },
+            ],
+            pageParams: [null],
+        }
+    }
     pages[0] = {
         ...first,
         messages: mergeMessages(first.messages, mergedIncoming),

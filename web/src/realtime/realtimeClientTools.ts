@@ -84,14 +84,18 @@ export const realtimeClientTools = {
 
         // Get the current session to check for permission requests
         const session = sessionStore.getSession(sessionId)
-        const requests = session?.agentState?.requests
+        const requests = session?.agentState?.requests ?? {}
 
-        if (!requests || Object.keys(requests).length === 0) {
+        if (Object.keys(requests).length === 0) {
             console.error('[Voice] No active permission request')
             return 'error (no active permission request)'
         }
 
         const requestId = Object.keys(requests)[0]
+        if (!requestId) {
+            console.error('[Voice] Failed to get request ID')
+            return 'error (no active permission request)'
+        }
 
         try {
             if (decision === 'allow') {

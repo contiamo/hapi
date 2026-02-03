@@ -12,7 +12,7 @@ type TracerState = {
 }
 
 function getMessageUuid(message: NormalizedMessage): string | null {
-    if (message.role === 'agent' && message.content.length > 0) {
+    if (message.role === 'agent' && message.content && message.content.length > 0) {
         const first = message.content[0] as unknown as Record<string, unknown>
         return typeof first.uuid === 'string' ? first.uuid : null
     }
@@ -20,7 +20,7 @@ function getMessageUuid(message: NormalizedMessage): string | null {
 }
 
 function getParentUuid(message: NormalizedMessage): string | null {
-    if (message.role === 'agent' && message.content.length > 0) {
+    if (message.role === 'agent' && message.content && message.content.length > 0) {
         const first = message.content[0] as unknown as Record<string, unknown>
         return typeof first.parentUUID === 'string' ? first.parentUUID : null
     }

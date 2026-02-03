@@ -117,7 +117,7 @@ export function useVerticalDrag(options: UseVerticalDragOptions): UseVerticalDra
     const onTouchStart = useCallback<React.TouchEventHandler>((e) => {
         if (disabled) return
         // Ignore multi-touch gestures
-        if (e.touches.length > 1) return
+        if (!e.touches || e.touches.length > 1) return
         const touch = e.touches[0]
         if (!touch) return
 
@@ -132,7 +132,7 @@ export function useVerticalDrag(options: UseVerticalDragOptions): UseVerticalDra
     const onTouchMove = useCallback<React.TouchEventHandler>((e) => {
         if (!isDraggingRef.current) return
         // Ignore multi-touch gestures
-        if (e.touches.length > 1) {
+        if (!e.touches || e.touches.length > 1) {
             endDrag()
             return
         }

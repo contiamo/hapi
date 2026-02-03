@@ -72,7 +72,7 @@ export function reduceTimeline(
             continue
         }
 
-        if (msg.role === 'agent') {
+        if (msg.role === 'agent' && msg.content) {
             for (let idx = 0; idx < msg.content.length; idx += 1) {
                 const c = msg.content[idx]
                 if (c.type === 'text') {

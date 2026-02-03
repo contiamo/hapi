@@ -40,6 +40,7 @@ export function SessionChat(props: {
 }) {
     const { haptic } = usePlatform()
     const navigate = useNavigate()
+    const messages = props.messages ?? []
     const controlsDisabled = !props.session.active
     const normalizedCacheRef = useRef<Map<string, { source: DecryptedMessage; normalized: NormalizedMessage | null }>>(new Map())
     const blocksByIdRef = useRef<Map<string, ChatBlock>>(new Map())
@@ -73,9 +74,9 @@ export function SessionChat(props: {
     useEffect(() => {
         registerVoiceHooksStore(
             (sessionId) => (sessionId === props.session.id ? props.session : null),
-            (sessionId) => (sessionId === props.session.id ? props.messages : [])
+            (sessionId) => (sessionId === props.session.id ? messages : [])
         )
-    }, [props.session, props.messages])
+    }, [props.session, messages])
 
     // Track and report new messages to voice assistant
     // Note: voiceHooks internally checks isVoiceSessionStarted() so we don't need to check voice.status here
@@ -83,14 +84,14 @@ export function SessionChat(props: {
 
     useEffect(() => {
         const prevIds = new Set(prevMessagesRef.current.map(m => m.id))
-        const newMessages = props.messages.filter(m => !prevIds.has(m.id))
+        const newMessages = messages.filter(m => !prevIds.has(m.id))
 
         if (newMessages.length > 0) {
             voiceHooks.onMessages(props.session.id, newMessages)
         }
 
-        prevMessagesRef.current = props.messages
-    }, [props.messages, props.session.id])
+        prevMessagesRef.current = messages
+    }, [messages, props.session.id])
 
     // Report ready event when thinking stops
     // Note: voiceHooks internally checks isVoiceSessionStarted() so we don't need to check voice.status here
@@ -150,7 +151,7 @@ export function SessionChat(props: {
         const cache = normalizedCacheRef.current
         const normalized: NormalizedMessage[] = []
         const seen = new Set<string>()
-        for (const message of props.messages) {
+        for (const message of messages) {
             seen.add(message.id)
             const cached = cache.get(message.id)
             if (cached && cached.source === message) {
@@ -167,7 +168,7 @@ export function SessionChat(props: {
             }
         }
         return normalized
-    }, [props.messages])
+    }, [messages])
 
     const reduced = useMemo(
         () => reduceChatBlocks(normalizedMessages, props.session.agentState),
@@ -289,7 +290,7 @@ export function SessionChat(props: {
                         isLoadingMoreMessages={props.isLoadingMoreMessages}
                         onLoadMore={props.onLoadMore}
                         pendingCount={props.pendingCount}
-                        rawMessagesCount={props.messages.length}
+                        rawMessagesCount={messages.length}
                         normalizedMessagesCount={normalizedMessages.length}
                         messagesVersion={props.messagesVersion}
                         forceScrollToken={forceScrollToken}

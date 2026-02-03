@@ -8,6 +8,7 @@ interface VersionInfo {
     shortSha: string
     branch: string
     isDirty: boolean
+    gitDescribe: string
     commitTime: string
     buildTime: string
 }
@@ -33,6 +34,7 @@ async function loadVersion(): Promise<VersionInfo> {
             shortSha: 'unknown',
             branch: 'unknown',
             isDirty: false,
+            gitDescribe: 'unknown',
             commitTime: new Date().toISOString(),
             buildTime: new Date().toISOString(),
         }
