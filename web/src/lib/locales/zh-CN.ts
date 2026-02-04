@@ -93,6 +93,7 @@ export default {
   'dialog.bulkArchive.partialSuccess': '归档 {succeeded} 个会话（{failed} 个失败）',
   'dialog.resume.success': '会话已恢复',
   'dialog.resume.error': '会话恢复失败',
+  'dialog.resume.sessionNotFound': '此会话不再存在。请创建新会话。',
   'dialog.fork.title': '分支会话',
   'dialog.fork.description': '从此会话创建新会话',
   'dialog.fork.yoloLabel': '启用 YOLO 模式',

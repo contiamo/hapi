@@ -91,6 +91,7 @@ export default {
   'dialog.bulkArchive.partialSuccess': 'Archived {succeeded} sessions ({failed} failed)',
   'dialog.resume.success': 'Session resumed',
   'dialog.resume.error': 'Failed to resume session',
+  'dialog.resume.sessionNotFound': 'This session no longer exists. Please create a new session instead.',
   'dialog.fork.title': 'Fork Session',
   'dialog.fork.description': 'Create a new session from this one',
   'dialog.fork.yoloLabel': 'Enable YOLO mode',
