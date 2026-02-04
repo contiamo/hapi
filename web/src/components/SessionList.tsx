@@ -7,7 +7,7 @@ import { useSessionActions } from '@/hooks/mutations/useSessionActions'
 import { SessionActionMenu } from '@/components/SessionActionMenu'
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { useTranslation } from '@/lib/use-translation'
+import { useTranslation, type TranslationKey } from '@/lib/use-translation'
 import { useSimpleToast } from '@/lib/simple-toast'
 
 type SessionGroup = {
@@ -209,7 +209,7 @@ function getAgentLabel(session: SessionSummary): string {
     return 'unknown'
 }
 
-function formatRelativeTime(value: number, t: (key: string, params?: Record<string, string | number>) => string): string | null {
+function formatRelativeTime(value: number, t: (key: TranslationKey, params?: Record<string, string | number>) => string): string | null {
     const ms = value < 1_000_000_000_000 ? value * 1000 : value
     if (!Number.isFinite(ms)) return null
     const delta = Date.now() - ms

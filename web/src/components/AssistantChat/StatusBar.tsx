@@ -4,7 +4,7 @@ import { useMemo } from 'react'
 import type { AgentState, ModelMode, PermissionMode } from '@/types/api'
 import type { ConversationStatus } from '@/realtime/types'
 import { getContextBudgetTokens } from '@/chat/modelConfig'
-import { useTranslation } from '@/lib/use-translation'
+import { useTranslation, type TranslationKey } from '@/lib/use-translation'
 
 // Vibing messages for thinking state
 const VIBING_MESSAGES = [
@@ -37,7 +37,7 @@ function getConnectionStatus(
     thinking: boolean,
     agentState: AgentState | null | undefined,
     voiceStatus: ConversationStatus | undefined,
-    t: (key: string) => string
+    t: (key: TranslationKey) => string
 ): { text: string; color: string; dotColor: string; isPulsing: boolean } {
     const hasPermissions = agentState?.requests && Object.keys(agentState.requests).length > 0
 
@@ -87,7 +87,7 @@ function getConnectionStatus(
     }
 }
 
-function getContextWarning(contextSize: number, maxContextSize: number, t: (key: string, params?: Record<string, string | number>) => string): { text: string; color: string } | null {
+function getContextWarning(contextSize: number, maxContextSize: number, t: (key: TranslationKey, params?: Record<string, string | number>) => string): { text: string; color: string } | null {
     const percentageUsed = (contextSize / maxContextSize) * 100
     const percentageRemaining = Math.max(0, 100 - percentageUsed)
 

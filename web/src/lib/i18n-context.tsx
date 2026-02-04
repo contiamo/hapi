@@ -5,8 +5,11 @@ export type Locale = 'en' | 'zh-CN'
 
 export type Translations = Record<string, string>
 
+// Type-safe translation keys - derived from the English locale
+export type TranslationKey = keyof typeof en
+
 export type I18nContextValue = {
-  t: (key: string, params?: Record<string, string | number>) => string
+  t: (key: TranslationKey, params?: Record<string, string | number>) => string
   locale: Locale
   setLocale: (locale: Locale) => void
 }
@@ -35,7 +38,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     document.documentElement.lang = newLocale
   }, [])
 
-  const t = useCallback((key: string, params?: Record<string, string | number>): string => {
+  const t = useCallback((key: TranslationKey, params?: Record<string, string | number>): string => {
     const dict = locales[locale] ?? locales.en
     const value = dict[key]
     const fallback = locales.en[key] ?? key

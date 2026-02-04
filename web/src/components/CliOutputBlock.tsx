@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { stripAnsiAndControls } from '@/components/assistant-ui/markdown-utils'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { useTranslation } from '@/lib/use-translation'
+import { useTranslation, type TranslationKey } from '@/lib/use-translation'
 
 const CLI_TAG_PATTERN = '(?:local-command-[a-z-]+|command-(?:name|message|args))'
 const CLI_TAG_CHECK_REGEX = new RegExp(`<${CLI_TAG_PATTERN}>`, 'i')
@@ -27,15 +27,15 @@ function normalizeCliText(text: string): string {
     return withoutAnsi.replace(BR_REGEX, '\n')
 }
 
-function formatLabel(tag: string, t?: (key: string) => string): string {
+function formatLabel(tag: string, t?: (key: TranslationKey) => string): string {
     const normalized = tag.toLowerCase()
     if (LABELS[normalized]) {
-        return t ? t(LABELS[normalized]) : LABELS[normalized]
+        return t ? t(LABELS[normalized] as TranslationKey) : LABELS[normalized]
     }
     return normalized.replace(/-/g, ' ')
 }
 
-function buildCliOutput(text: string, t?: (key: string) => string): string {
+function buildCliOutput(text: string, t?: (key: TranslationKey) => string): string {
     const matches = Array.from(text.matchAll(new RegExp(CLI_TAG_REGEX_SOURCE, 'gi')))
     if (matches.length === 0) {
         return normalizeCliText(text)

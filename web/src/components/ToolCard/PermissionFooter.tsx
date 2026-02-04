@@ -5,7 +5,7 @@ import type { ChatToolCall, ToolPermission } from '@/chat/types'
 import { isObject } from '@hapi/protocol'
 import { usePlatform } from '@/hooks/usePlatform'
 import { Spinner } from '@/components/Spinner'
-import { useTranslation } from '@/lib/use-translation'
+import { useTranslation, type TranslationKey } from '@/lib/use-translation'
 
 function getInputStringAny(input: unknown, keys: string[]): string | null {
     if (!isObject(input)) return null
@@ -37,7 +37,7 @@ function isCodexSession(metadata: SessionMetadataSummary | null, toolName: strin
         || toolName.startsWith('Gemini')
 }
 
-function formatPermissionSummary(permission: ToolPermission, toolName: string, toolInput: unknown, codex: boolean, t: (key: string) => string): string {
+function formatPermissionSummary(permission: ToolPermission, toolName: string, toolInput: unknown, codex: boolean, t: (key: TranslationKey) => string): string {
     if (permission.status === 'pending') return t('tool.waitingForApproval')
     if (permission.status === 'canceled') return permission.reason ? `${t('tool.canceled')}: ${permission.reason}` : t('tool.canceled')
 
