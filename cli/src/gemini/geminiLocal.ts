@@ -5,6 +5,7 @@ import { spawnWithAbort } from '@/utils/spawnWithAbort';
 export async function geminiLocal(opts: {
     path: string;
     sessionId: string | null;
+    resumeSessionId?: string | null;
     abort: AbortSignal;
     model?: string;
     approvalMode?: string;
@@ -13,8 +14,10 @@ export async function geminiLocal(opts: {
 }): Promise<void> {
     const args: string[] = [];
 
-    if (opts.sessionId) {
-        args.push('--resume', opts.sessionId);
+    // Use resumeSessionId if provided, otherwise fall back to sessionId
+    const sessionToResume = opts.resumeSessionId || opts.sessionId;
+    if (sessionToResume) {
+        args.push('--resume', sessionToResume);
     }
     if (opts.model) {
         args.push('--model', opts.model);
