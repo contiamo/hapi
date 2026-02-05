@@ -1,0 +1,6 @@
+{
+  "name": "hapi-deploy",
+  "version": "1.0.0",
+  "description": "Deployment and status checking workflows for hapi",
+  "author": "hapi project"
+}
