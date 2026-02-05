@@ -47,18 +47,28 @@ export function useSendMessage(api: ApiClient | null, sessionId: string | null):
                 throw new Error('API unavailable')
             }
 
-            // Detect clear command
-            const isClearCommand = input.text.trim() === '/clear'
-
+            // Send message to backend
             await api.sendMessage(input.sessionId, input.text, input.localId, input.attachments)
 
-            // Clear UI immediately after sending clear command
+            // Detect clear command and handle after successful send
+            const isClearCommand = input.text.trim() === '/clear'
             if (isClearCommand) {
+                // Wait a bit for the backend to process and for the CLI to handle the clear
+                // This gives the agent time to acknowledge the clear command
+                await new Promise(resolve => setTimeout(resolve, 500))
+
+                // Now clear the UI
                 clearMessageWindow(input.sessionId)
                 toast.success('Chat history cleared')
             }
         },
         onMutate: async (input) => {
+            // Don't show /clear as an optimistic message - it will just be cleared anyway
+            const isClearCommand = input.text.trim() === '/clear'
+            if (isClearCommand) {
+                return
+            }
+
             const optimisticMessage: DecryptedMessage = {
                 id: input.localId,
                 seq: null,
