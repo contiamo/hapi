@@ -221,6 +221,31 @@ export class ApiClient {
         return response
     }
 
+    async getDraft(sessionId: string): Promise<{ text: string; timestamp: number } | null> {
+        const response = await this.request<{ draft: { text: string; timestamp: number } | null }>(
+            `/api/sessions/${encodeURIComponent(sessionId)}/draft`
+        )
+        return response.draft
+    }
+
+    async saveDraft(sessionId: string, text: string, timestamp: number): Promise<{ text: string; timestamp: number }> {
+        const response = await this.request<{ draft: { text: string; timestamp: number } }>(
+            `/api/sessions/${encodeURIComponent(sessionId)}/draft`,
+            {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, timestamp })
+            }
+        )
+        return response.draft
+    }
+
+    async clearDraft(sessionId: string): Promise<void> {
+        await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/draft`, {
+            method: 'DELETE'
+        })
+    }
+
     async getGitStatus(sessionId: string): Promise<GitCommandResponse> {
         return await this.request<GitCommandResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/git-status`)
     }
