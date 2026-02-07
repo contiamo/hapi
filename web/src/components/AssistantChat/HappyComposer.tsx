@@ -30,7 +30,7 @@ import { AttachmentItem } from '@/components/AssistantChat/AttachmentItem'
 import { useTranslation } from '@/lib/use-translation'
 import { CloseIcon } from '@/components/icons'
 import { useHappyChatContext } from './context'
-import { getDraft, saveDraft, clearDraft } from '@/lib/draft-store'
+import { getDraft, getDraftWithTimestamp, saveDraft as saveDraftLocal, clearDraft as clearDraftLocal, mergeDrafts } from '@/lib/draft-store'
 import { debounce } from '@/lib/utils'
 
 type ComposerMode = 'quick' | 'expanded'
@@ -156,15 +156,46 @@ export function HappyComposer(props: {
         prevControlledByUser.current = controlledByUser
     }, [controlledByUser])
 
-    // Draft persistence: Restore draft on session open
+    // Draft persistence: Fetch and merge drafts on session open
     useEffect(() => {
         if (!sessionId || draftRestored) return
 
-        const draft = getDraft(sessionId)
-        if (draft) {
-            api.composer().setText(draft)
+        const fetchAndMergeDraft = async () => {
+            try {
+                // Fetch server draft
+                const serverDraft = await api.getDraft(sessionId)
+
+                // Get local draft with timestamp
+                const localDraft = getDraftWithTimestamp(sessionId)
+
+                // Merge: take newer by timestamp
+                const merged = mergeDrafts(localDraft, serverDraft)
+
+                if (merged?.text) {
+                    // Check if server had different draft
+                    if (serverDraft && localDraft && serverDraft.text !== localDraft.text) {
+                        console.info('[HappyComposer] Draft updated from another device')
+                    }
+
+                    // Restore merged draft to composer
+                    api.composer().setText(merged.text)
+
+                    // Save merged to localStorage
+                    saveDraftLocal(sessionId, merged.text, merged.timestamp)
+                }
+            } catch (error) {
+                console.error('[HappyComposer] Failed to fetch draft:', error)
+                // Fallback to localStorage only
+                const localDraft = getDraft(sessionId)
+                if (localDraft) {
+                    api.composer().setText(localDraft)
+                }
+            }
+
+            setDraftRestored(true)
         }
-        setDraftRestored(true)
+
+        fetchAndMergeDraft()
     }, [sessionId, api, draftRestored])
 
     // Draft persistence: Reset flag on session switch
@@ -172,23 +203,44 @@ export function HappyComposer(props: {
         setDraftRestored(false)
     }, [sessionId])
 
-    // Draft persistence: Debounced save on text change
+    // Draft persistence: Debounced save on text change (both local + server)
     const debouncedSave = useMemo(() =>
-        debounce((sid: string, text: string) => {
+        debounce(async (sid: string, text: string, apiClient: typeof api) => {
             if (text.trim()) {
-                saveDraft(sid, text)
+                const timestamp = Date.now()
+
+                // Save locally immediately (optimistic)
+                saveDraftLocal(sid, text, timestamp)
+
+                // Sync to server (fire-and-forget)
+                try {
+                    const result = await apiClient.saveDraft(sid, text, timestamp)
+
+                    // Check if server returned different draft (LWW rejected ours)
+                    if (result.text !== text || result.timestamp !== timestamp) {
+                        console.info('[HappyComposer] Draft conflict: server had newer version', {
+                            local: timestamp,
+                            server: result.timestamp
+                        })
+                    }
+                } catch (error) {
+                    console.error('[HappyComposer] Draft sync failed:', error)
+                    // Local draft still saved, will sync on next session open
+                }
             } else {
-                clearDraft(sid)
+                clearDraftLocal(sid)
+                // Clear on server too (async)
+                apiClient.clearDraft(sid).catch(err => console.error('[HappyComposer] Failed to clear draft:', err))
             }
-        }, 500), // 500ms debounce
+        }, 1000), // 1 second debounce for server sync
     [])
 
     useEffect(() => {
         if (!sessionId) return
-        debouncedSave(sessionId, composerText)
+        debouncedSave(sessionId, composerText, api)
 
         return () => debouncedSave.cancel() // Cleanup on unmount
-    }, [composerText, sessionId, debouncedSave])
+    }, [composerText, sessionId, debouncedSave, api])
 
     const { haptic: platformHaptic, isTouch } = usePlatform()
     const { isStandalone, isIOS } = usePWAInstall()
@@ -635,7 +687,9 @@ export function HappyComposer(props: {
 
     const handleSend = useCallback(() => {
         api.composer().send()
-        clearDraft(sessionId)
+        // Clear draft locally and on server
+        clearDraftLocal(sessionId)
+        api.clearDraft(sessionId).catch(err => console.error('[HappyComposer] Failed to clear draft:', err))
     }, [api, sessionId])
 
     const overlays = useMemo(() => {
