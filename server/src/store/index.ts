@@ -197,10 +197,11 @@ export class Store {
             CREATE INDEX IF NOT EXISTS idx_push_subscriptions_namespace ON push_subscriptions(namespace);
 
             CREATE TABLE IF NOT EXISTS session_drafts (
-                session_id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
                 namespace TEXT NOT NULL,
                 draft_text TEXT NOT NULL,
                 draft_timestamp INTEGER NOT NULL,
+                PRIMARY KEY (session_id, namespace),
                 FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
             );
             CREATE INDEX IF NOT EXISTS idx_drafts_namespace ON session_drafts(namespace);
