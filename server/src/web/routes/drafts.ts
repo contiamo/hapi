@@ -20,7 +20,7 @@ export function createDraftsRoutes(getStore: () => Store | null): Hono<WebAppEnv
         }
 
         const sessionId = c.req.param('id')
-        const { namespace } = c.get('auth')
+        const namespace = c.get('namespace')
 
         // Verify session access (namespace check)
         const session = store.sessions.getSession(sessionId, namespace)
@@ -40,7 +40,7 @@ export function createDraftsRoutes(getStore: () => Store | null): Hono<WebAppEnv
         }
 
         const sessionId = c.req.param('id')
-        const { namespace } = c.get('auth')
+        const namespace = c.get('namespace')
 
         const body = await c.req.json().catch(() => null)
         const parsed = saveDraftBodySchema.safeParse(body)
@@ -67,7 +67,7 @@ export function createDraftsRoutes(getStore: () => Store | null): Hono<WebAppEnv
         }
 
         const sessionId = c.req.param('id')
-        const { namespace } = c.get('auth')
+        const namespace = c.get('namespace')
 
         const session = store.sessions.getSession(sessionId, namespace)
         if (!session) {
