@@ -136,40 +136,36 @@ No conflicts detected. We don't have protocol version checking...
    - Record any deviations from plan
    - Note lessons learned
 
-### Automation Ideas
+### GitHub Actions Automation
 
-**GitHub Action** (weekly report generation):
-```yaml
-name: Generate Upstream Sync Report
+A GitHub Actions workflow is included that runs weekly and creates an issue with the report.
 
-on:
-  schedule:
-    - cron: '0 9 * * 1'  # Monday 9 AM
-  workflow_dispatch:
+**Setup:**
 
-jobs:
-  generate-report:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+1. **Add Anthropic API key as repository secret**:
+   - Go to repository Settings → Secrets and variables → Actions
+   - Click "New repository secret"
+   - Name: `ANTHROPIC_API_KEY`
+   - Value: Your Anthropic API key from https://console.anthropic.com/
 
-      - uses: astral-sh/setup-uv@v1
+2. **Workflow will run automatically**:
+   - Every Monday at 9 AM UTC
+   - Can also be triggered manually via Actions tab
 
-      - name: Generate report
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: uv run scripts/generate-upstream-sync-report.py
+**What it does:**
+- Fetches upstream commits
+- Generates comprehensive sync report
+- Creates or updates a GitHub issue with the report
+- Uploads full report as workflow artifact
+- Adds helpful checklist and quick action links
 
-      - name: Create PR
-        uses: peter-evans/create-pull-request@v5
-        with:
-          commit-message: 'docs: update upstream sync report'
-          title: 'Weekly Upstream Sync Report'
-          body: 'Automated weekly upstream analysis'
-          branch: upstream-report-${{ github.run_number }}
-```
+**Issue created includes:**
+- Report preview (first 3000 characters)
+- Link to download full report artifact
+- Next steps checklist
+- Links to sync strategy and log documents
+
+See `.github/workflows/weekly-upstream-sync-report.yml` for details.
 
 ## Customization
 
