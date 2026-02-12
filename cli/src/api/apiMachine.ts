@@ -141,9 +141,6 @@ export class ApiMachineClient {
                 }
 
                 // Validate path is within user's home directory to prevent filesystem enumeration
-                // TODO: This should validate against configured base paths (HAPI_BASE_PATHS)
-                // For now, we validate against homedir as a security baseline.
-                // The server should pass allowedBasePaths in the RPC params for proper validation.
                 const userHomeDir = homedir()
                 const validation = validatePath(resolvedPath, userHomeDir)
                 if (!validation.valid) {
