@@ -262,8 +262,8 @@ export class RpcGateway {
         }
     }
 
-    async checkPathsExist(machineId: string, paths: string[], basePaths?: string[]): Promise<Record<string, boolean>> {
-        const result = await this.machineRpc(machineId, 'path-exists', { paths, basePaths }) as RpcPathExistsResponse | unknown
+    async checkPathsExist(machineId: string, paths: string[]): Promise<Record<string, boolean>> {
+        const result = await this.machineRpc(machineId, 'path-exists', { paths }) as RpcPathExistsResponse | unknown
         if (!result || typeof result !== 'object') {
             throw new Error('Unexpected path-exists result')
         }
@@ -280,11 +280,10 @@ export class RpcGateway {
         return exists
     }
 
-    async listDirectories(machineId: string, path: string, prefix?: string, maxDepth?: number, basePaths?: string[]): Promise<string[]> {
-        const params: { path: string; prefix?: string; maxDepth?: number; basePaths?: string[] } = { path }
+    async listDirectories(machineId: string, path: string, prefix?: string, maxDepth?: number): Promise<string[]> {
+        const params: { path: string; prefix?: string; maxDepth?: number } = { path }
         if (prefix) params.prefix = prefix
         if (maxDepth !== undefined) params.maxDepth = maxDepth
-        if (basePaths && basePaths.length > 0) params.basePaths = basePaths
 
         const result = await this.machineRpc(machineId, 'list-directories', params) as { directories: string[]; error?: string } | unknown
         if (!result || typeof result !== 'object') {

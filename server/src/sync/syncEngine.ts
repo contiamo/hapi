@@ -18,7 +18,6 @@ import { MachineCache, type Machine } from './machineCache'
 import { MessageService } from './messageService'
 import { RpcGateway, type RpcCommandResponse, type RpcPathExistsResponse, type RpcReadFileResponse, type RpcUploadFileResponse, type RpcDeleteUploadResponse } from './rpcGateway'
 import { SessionCache } from './sessionCache'
-import { getConfiguration } from '../configuration'
 
 export type { Session, SyncEvent } from '@hapi/protocol/types'
 export type { Machine } from './machineCache'
@@ -679,13 +678,11 @@ export class SyncEngine {
     }
 
     async checkPathsExist(machineId: string, paths: string[]): Promise<Record<string, boolean>> {
-        const config = getConfiguration()
-        return await this.rpcGateway.checkPathsExist(machineId, paths, config.basePaths)
+        return await this.rpcGateway.checkPathsExist(machineId, paths)
     }
 
     async listDirectories(machineId: string, path: string, prefix?: string, maxDepth?: number): Promise<string[]> {
-        const config = getConfiguration()
-        return await this.rpcGateway.listDirectories(machineId, path, prefix, maxDepth, config.basePaths)
+        return await this.rpcGateway.listDirectories(machineId, path, prefix, maxDepth)
     }
 
     async getGitStatus(sessionId: string, cwd?: string): Promise<RpcCommandResponse> {

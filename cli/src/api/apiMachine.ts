@@ -3,8 +3,8 @@
  */
 
 import { io, type Socket } from 'socket.io-client'
-import { stat, readdir, realpath, lstat, opendir } from 'node:fs/promises'
-import { join, resolve, sep } from 'node:path'
+import { stat, readdir, realpath, lstat } from 'node:fs/promises'
+import { join, resolve } from 'node:path'
 import { homedir } from 'node:os'
 import { logger } from '@/ui/logger'
 import { configuration } from '@/configuration'
@@ -61,7 +61,6 @@ type MachineRpcHandlers = {
 
 interface PathExistsRequest {
     paths: string[]
-    basePaths?: string[]
 }
 
 interface PathExistsResponse {
@@ -86,42 +85,23 @@ export class ApiMachineClient {
 
         this.rpcHandlerManager.registerHandler<PathExistsRequest, PathExistsResponse>('path-exists', async (params) => {
             const rawPaths = Array.isArray(params?.paths) ? params.paths : []
-            const basePaths = Array.isArray(params?.basePaths) ? params.basePaths : []
             const uniquePaths = Array.from(new Set(rawPaths.filter((path): path is string => typeof path === 'string')))
             const exists: Record<string, boolean> = {}
+            const userHomeDir = homedir()
 
             await Promise.all(uniquePaths.map(async (path) => {
                 const trimmed = path.trim()
                 if (!trimmed) return
 
+                // Validate path is within user's home directory
+                const validation = validatePath(trimmed, userHomeDir)
+                if (!validation.valid) {
+                    logger.warn(`Path validation failed for path-exists: ${trimmed}`)
+                    exists[trimmed] = false
+                    return
+                }
+
                 try {
-                    // Resolve symlinks before validation
-                    const resolvedPath = await realpath(trimmed)
-
-                    // Validate path against approved base paths if provided
-                    if (basePaths.length > 0) {
-                        const isWithinBasePath = basePaths.some(basePath => {
-                            const normalizedBasePath = resolve(basePath)
-                            return resolvedPath === normalizedBasePath ||
-                                   resolvedPath.startsWith(normalizedBasePath + sep)
-                        })
-
-                        if (!isWithinBasePath) {
-                            logger.warn(`Path outside approved base paths for path-exists: ${resolvedPath}`)
-                            exists[trimmed] = false
-                            return
-                        }
-                    } else {
-                        // Fallback: validate against homedir (backward compatibility)
-                        const userHomeDir = homedir()
-                        const validation = validatePath(resolvedPath, userHomeDir)
-                        if (!validation.valid) {
-                            logger.warn(`Path validation failed for path-exists: ${resolvedPath}`)
-                            exists[trimmed] = false
-                            return
-                        }
-                    }
-
                     const stats = await stat(trimmed)
                     exists[trimmed] = stats.isDirectory()
                 } catch {
@@ -132,11 +112,10 @@ export class ApiMachineClient {
             return { exists }
         })
 
-        this.rpcHandlerManager.registerHandler<{ path: string; prefix?: string; maxDepth?: number; basePaths?: string[] }, { directories: string[]; error?: string }>('list-directories', async (params) => {
+        this.rpcHandlerManager.registerHandler<{ path: string; prefix?: string; maxDepth?: number }, { directories: string[]; error?: string }>('list-directories', async (params) => {
             const path = typeof params?.path === 'string' ? params.path.trim() : ''
             let prefix = typeof params?.prefix === 'string' ? params.prefix.trim() : ''
             const maxDepth = typeof params?.maxDepth === 'number' ? Math.min(Math.max(params.maxDepth, 1), 10) : 4
-            const basePaths = Array.isArray(params?.basePaths) ? params.basePaths : []
             const maxResults = 100
 
             if (!path) {
@@ -160,26 +139,15 @@ export class ApiMachineClient {
                     return { directories: [], error: 'Symlinks are not allowed' }
                 }
 
-                // Validate path against approved base paths if provided
-                if (basePaths.length > 0) {
-                    const isWithinBasePath = basePaths.some(basePath => {
-                        const normalizedBasePath = resolve(basePath)
-                        return resolvedPath === normalizedBasePath ||
-                               resolvedPath.startsWith(normalizedBasePath + sep)
-                    })
-
-                    if (!isWithinBasePath) {
-                        logger.warn(`Path outside approved base paths: ${resolvedPath}`)
-                        return { directories: [], error: 'Access denied: Path outside approved base paths' }
-                    }
-                } else {
-                    // Fallback: validate against homedir (backward compatibility)
-                    const userHomeDir = homedir()
-                    const validation = validatePath(resolvedPath, userHomeDir)
-                    if (!validation.valid) {
-                        logger.warn(`Path validation failed for list-directories: ${resolvedPath}`)
-                        return { directories: [], error: 'Access denied' }
-                    }
+                // Validate path is within user's home directory to prevent filesystem enumeration
+                // TODO: This should validate against configured base paths (HAPI_BASE_PATHS)
+                // For now, we validate against homedir as a security baseline.
+                // The server should pass allowedBasePaths in the RPC params for proper validation.
+                const userHomeDir = homedir()
+                const validation = validatePath(resolvedPath, userHomeDir)
+                if (!validation.valid) {
+                    logger.warn(`Path validation failed for list-directories: ${resolvedPath}`)
+                    return { directories: [], error: 'Access denied' }
                 }
 
                 // Additional validation: ensure path is absolute
@@ -207,14 +175,11 @@ export class ApiMachineClient {
                     visited.add(dirPath)
 
                     try {
-                        const dir = await opendir(dirPath)
+                        const entries = await readdir(dirPath, { withFileTypes: true })
 
-                        for await (const entry of dir) {
+                        for (const entry of entries) {
                             // Early termination check inside loop
-                            if (results.length >= maxResults) {
-                                await dir.close()
-                                break
-                            }
+                            if (results.length >= maxResults) break
 
                             // Skip hidden directories and symlinks
                             if (entry.name.startsWith('.') || entry.isSymbolicLink()) continue
