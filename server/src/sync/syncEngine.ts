@@ -682,7 +682,8 @@ export class SyncEngine {
     }
 
     async listDirectories(machineId: string, path: string, prefix?: string, maxDepth?: number): Promise<string[]> {
-        return await this.rpcGateway.listDirectories(machineId, path, prefix, maxDepth)
+        const config = getConfiguration()
+        return await this.rpcGateway.listDirectories(machineId, path, prefix, maxDepth, config.basePaths)
     }
 
     async getGitStatus(sessionId: string, cwd?: string): Promise<RpcCommandResponse> {

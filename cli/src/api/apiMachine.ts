@@ -112,10 +112,11 @@ export class ApiMachineClient {
             return { exists }
         })
 
-        this.rpcHandlerManager.registerHandler<{ path: string; prefix?: string; maxDepth?: number }, { directories: string[]; error?: string }>('list-directories', async (params) => {
+        this.rpcHandlerManager.registerHandler<{ path: string; prefix?: string; maxDepth?: number; basePaths?: string[] }, { directories: string[]; error?: string }>('list-directories', async (params) => {
             const path = typeof params?.path === 'string' ? params.path.trim() : ''
             let prefix = typeof params?.prefix === 'string' ? params.prefix.trim() : ''
             const maxDepth = typeof params?.maxDepth === 'number' ? Math.min(Math.max(params.maxDepth, 1), 10) : 4
+            const basePaths = Array.isArray(params?.basePaths) ? params.basePaths : []
             const maxResults = 100
 
             if (!path) {
@@ -219,7 +220,16 @@ export class ApiMachineClient {
                     return a.path.localeCompare(b.path)
                 })
 
-                const directories = results.map(r => r.path)
+                let directories = results.map(r => r.path)
+
+                // Filter by base paths if provided (for autocomplete suggestions)
+                if (basePaths.length > 0) {
+                    directories = directories.filter(dir => {
+                        return basePaths.some(basePath => {
+                            return dir === basePath || dir.startsWith(basePath + '/')
+                        })
+                    })
+                }
 
                 return { directories }
             } catch (error) {
