@@ -14,6 +14,7 @@ interface SuggestionOptions {
     autoSelectFirst?: boolean  // If true, automatically select first item when suggestions appear
     wrapAround?: boolean       // If true, wrap around when reaching top/bottom
     allowEmptyQuery?: boolean  // If true, allow empty string queries
+    debounceMs?: number        // If set, debounce queries by this many milliseconds
 }
 
 /**
@@ -75,7 +76,8 @@ export function useActiveSuggestions(
         clampSelection = true,
         autoSelectFirst = true,
         wrapAround = true,
-        allowEmptyQuery = false
+        allowEmptyQuery = false,
+        debounceMs = 0
     } = options
 
     // State for suggestions
@@ -192,8 +194,17 @@ export function useActiveSuggestions(
     }, [clampSelection, autoSelectFirst, allowEmptyQuery])
 
     useEffect(() => {
-        syncRef.current?.setValue(query)
-    }, [query, handler, clampSelection, autoSelectFirst, allowEmptyQuery])
+        if (debounceMs <= 0) {
+            syncRef.current?.setValue(query)
+            return
+        }
+
+        const timeoutId = setTimeout(() => {
+            syncRef.current?.setValue(query)
+        }, debounceMs)
+
+        return () => clearTimeout(timeoutId)
+    }, [query, handler, clampSelection, autoSelectFirst, allowEmptyQuery, debounceMs])
 
     // If no query return empty suggestions
     if (query === null || (!allowEmptyQuery && query === '')) {

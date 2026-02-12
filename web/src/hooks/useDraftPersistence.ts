@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
 import type { ApiClient } from '@/api/client'
-import type { AssistantRuntimeCore } from '@assistant-ui/react'
+import type { AssistantApi } from '@assistant-ui/react'
 import {
   getDraft,
   getDraftWithTimestamp,
@@ -14,7 +14,7 @@ export interface UseDraftPersistenceOptions {
   sessionId: string | null
   text: string
   apiClient: ApiClient
-  assistantApi: AssistantRuntimeCore
+  assistantApi: AssistantApi
   enabled?: boolean
 }
 

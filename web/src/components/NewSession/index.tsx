@@ -121,6 +121,26 @@ export function NewSession(props: {
 
         const lowered = query.toLowerCase()
 
+        // If query is empty, show base paths first, then recent paths
+        if (!query.trim()) {
+            const basePathSuggestions = basePaths.map((path) => ({
+                key: path,
+                text: path,
+                label: path
+            }))
+
+            const recentPathSuggestions = verifiedPaths
+                .filter((path) => !basePaths.includes(path))
+                .slice(0, 8 - basePathSuggestions.length)
+                .map((path) => ({
+                    key: path,
+                    text: path,
+                    label: path
+                }))
+
+            return [...basePathSuggestions, ...recentPathSuggestions]
+        }
+
         // Check if the query starts with any base path
         const matchingBasePath = basePaths.find(bp => query.startsWith(bp))
 
@@ -129,11 +149,12 @@ export function NewSession(props: {
             try {
                 const result = await props.api.listMachineDirectories(machineId, matchingBasePath, {
                     prefix: query,
-                    maxDepth: 4
+                    maxDepth: 5
                 })
 
+                // Show more results (up to 15) to help with multi-level navigation
                 return result.directories
-                    .slice(0, 8)
+                    .slice(0, 15)
                     .map((path) => ({
                         key: path,
                         text: path,
@@ -143,6 +164,19 @@ export function NewSession(props: {
                 console.error('Failed to fetch subdirectories:', error)
                 // Fall back to verified paths
             }
+        }
+
+        // Check if query partially matches any base path (user is typing a base path)
+        const partialBasePathMatches = basePaths.filter((path) =>
+            path.toLowerCase().startsWith(lowered)
+        )
+
+        if (partialBasePathMatches.length > 0) {
+            return partialBasePathMatches.map((path) => ({
+                key: path,
+                text: path,
+                label: path
+            }))
         }
 
         // Default: show verified paths that match
@@ -161,7 +195,7 @@ export function NewSession(props: {
     const [suggestions, selectedIndex, moveUp, moveDown, clearSuggestions] = useActiveSuggestions(
         activeQuery,
         getSuggestions,
-        { allowEmptyQuery: true, autoSelectFirst: false }
+        { allowEmptyQuery: true, autoSelectFirst: false, debounceMs: 150 }
     )
 
     const handleMachineChange = useCallback((newMachineId: string) => {
