@@ -43,6 +43,8 @@ export function NewSession(props: {
     const [sessionType, setSessionType] = useState<SessionType>('simple')
     const [worktreeName, setWorktreeName] = useState('')
     const [error, setError] = useState<string | null>(null)
+    const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false)
+    const [autocompleteError, setAutocompleteError] = useState<string | null>(null)
     const worktreeInputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
@@ -148,11 +150,16 @@ export function NewSession(props: {
 
         if (matchingBasePath && query.length > matchingBasePath.length) {
             // User is typing under a base path - fetch subdirectories recursively
+            setIsLoadingSuggestions(true)
+            setAutocompleteError(null)
+
             try {
                 const result = await props.api.listMachineDirectories(machineId, matchingBasePath, {
                     prefix: query,
                     maxDepth: 5
                 })
+
+                setIsLoadingSuggestions(false)
 
                 // Show more results (up to 15) to help with multi-level navigation
                 return result.directories
@@ -164,6 +171,21 @@ export function NewSession(props: {
                     }))
             } catch (error) {
                 console.error('Failed to fetch subdirectories:', error)
+                setIsLoadingSuggestions(false)
+
+                // Set appropriate error message
+                if (error instanceof Error) {
+                    if (error.message.toLowerCase().includes('timeout')) {
+                        setAutocompleteError('Search timed out. Try a shorter path.')
+                    } else if (error.message.toLowerCase().includes('denied')) {
+                        setAutocompleteError('Path not found or access denied.')
+                    } else {
+                        setAutocompleteError('Could not load suggestions. Check your connection.')
+                    }
+                } else {
+                    setAutocompleteError('Could not load suggestions. Check your connection.')
+                }
+
                 // Fall back to verified paths
             }
         }
@@ -226,7 +248,10 @@ export function NewSession(props: {
     const handleDirectoryChange = useCallback((value: string) => {
         setSuppressSuggestions(false)
         setDirectory(value)
-    }, [])
+        if (autocompleteError) {
+            setAutocompleteError(null) // Auto-dismiss error when user types
+        }
+    }, [autocompleteError])
 
     const handleDirectoryFocus = useCallback(() => {
         setSuppressSuggestions(false)
@@ -310,12 +335,15 @@ export function NewSession(props: {
                 selectedIndex={selectedIndex}
                 isDisabled={isFormDisabled}
                 recentPaths={recentPaths}
+                isLoadingSuggestions={isLoadingSuggestions}
+                autocompleteError={autocompleteError}
                 onDirectoryChange={handleDirectoryChange}
                 onDirectoryFocus={handleDirectoryFocus}
                 onDirectoryBlur={handleDirectoryBlur}
                 onDirectoryKeyDown={handleDirectoryKeyDown}
                 onSuggestionSelect={handleSuggestionSelect}
                 onPathClick={handlePathClick}
+                onDismissError={() => setAutocompleteError(null)}
             />
             <SessionTypeSelector
                 sessionType={sessionType}
