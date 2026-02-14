@@ -11,6 +11,8 @@ NC='\033[0m' # No Color
 
 # Default values
 BUILD_FROM_SOURCE=false
+SKIP_BUILD=false
+DRY_RUN=false
 INSTALL_PATH="$HOME/.local/bin"
 SETUP_SYSTEMD=true
 SETUP_TAILSCALE=false
@@ -48,6 +50,8 @@ Usage: $0 [OPTIONS]
 
 OPTIONS:
     -b, --build              Build from source before installing
+    --skip-build             Skip binary installation, only update systemd services
+    --dry-run                Show what would be done without making changes
     -n, --name NAME          Service name (default: hapi)
     -p, --path PATH          Installation path (default: ~/.local/bin)
     -s, --skip-systemd       Skip systemd service setup
@@ -77,6 +81,12 @@ EXAMPLES:
     # Install with specific base paths
     $0 --base-paths "/home/user/projects,/home/user/documents"
 
+    # Update service configuration without reinstalling binary
+    $0 --skip-build --base-paths "/home/user/newpath"
+
+    # Preview generated service files without making changes
+    $0 --dry-run --base-paths "/home/user/projects"
+
     # Custom installation path without systemd
     $0 --path /usr/local/bin --skip-systemd
 
@@ -88,6 +98,14 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         -b|--build)
             BUILD_FROM_SOURCE=true
+            shift
+            ;;
+        --skip-build)
+            SKIP_BUILD=true
+            shift
+            ;;
+        --dry-run)
+            DRY_RUN=true
             shift
             ;;
         -n|--name)
@@ -370,7 +388,7 @@ RestartSec=5s
 StandardOutput=journal
 StandardError=journal
 Environment="HAPI_LISTEN_PORT=$hapi_port"
-Environment="PATH=$install_path:\$PATH"
+Environment="PATH=$install_path:/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin"
 Environment="TERM=xterm-256color"
 Environment="COLUMNS=80"
 Environment="PROMPT_COMMAND="
@@ -404,7 +422,7 @@ Restart=always
 RestartSec=5s
 StandardOutput=journal
 StandardError=journal
-Environment="PATH=$install_path:\$PATH"
+Environment="PATH=$install_path:/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin"
 Environment="TERM=xterm-256color"
 Environment="COLUMNS=80"
 Environment="PROMPT_COMMAND="
@@ -531,6 +549,25 @@ setup_systemd() {
     # Generate new service file contents
     local new_server_content=$(generate_server_service "$hapi_binary" "$SERVICE_NAME" "$HAPI_PORT" "$INSTALL_PATH" "$normalized_paths")
     local new_runner_content=$(generate_runner_service "$hapi_binary" "$SERVICE_NAME" "$server_service" "$INSTALL_PATH")
+
+    # If dry-run, show generated service files and exit
+    if [ "$DRY_RUN" = true ]; then
+        echo ""
+        echo "========================================"
+        echo "  DRY RUN - Generated Service Files"
+        echo "========================================"
+        echo ""
+        echo -e "${GREEN}$server_service:${NC}"
+        echo "----------------------------------------"
+        echo "$new_server_content"
+        echo ""
+        echo -e "${GREEN}$runner_service:${NC}"
+        echo "----------------------------------------"
+        echo "$new_runner_content"
+        echo ""
+        print_info "Dry run complete. No changes were made."
+        return 0
+    fi
 
     # Check if services are currently running (before any changes)
     local server_was_running=false
@@ -735,6 +772,8 @@ main() {
     print_info "Installation Configuration:"
     echo "  Service name: $SERVICE_NAME"
     echo "  Build from source: $BUILD_FROM_SOURCE"
+    echo "  Skip build: $SKIP_BUILD"
+    echo "  Dry run: $DRY_RUN"
     echo "  Installation path: $INSTALL_PATH"
     echo "  Setup systemd: $SETUP_SYSTEMD"
     echo "  Setup Tailscale: $SETUP_TAILSCALE"
@@ -755,11 +794,15 @@ main() {
 
     check_dependencies
 
-    if [ "$BUILD_FROM_SOURCE" = true ]; then
-        build_from_source
-    fi
+    if [ "$SKIP_BUILD" = false ]; then
+        if [ "$BUILD_FROM_SOURCE" = true ]; then
+            build_from_source
+        fi
 
-    install_binary
+        install_binary
+    else
+        print_info "Skipping build and binary installation (--skip-build flag)"
+    fi
 
     if [ "$SETUP_SYSTEMD" = true ]; then
         setup_systemd
