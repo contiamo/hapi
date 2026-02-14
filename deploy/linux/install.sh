@@ -312,7 +312,7 @@ Environment="PATH=$INSTALL_PATH:$PATH"
 Environment="TERM=xterm-256color"
 Environment="COLUMNS=80"
 Environment="PROMPT_COMMAND="
-Environment="PS1=[\\u@\\h \\W]\\$\\$ "
+Environment="PS1=[\\\\u@\\\\h \\\\W]\\\\$ "
 
 [Install]
 WantedBy=default.target
@@ -339,7 +339,7 @@ Environment="PATH=$INSTALL_PATH:$PATH"
 Environment="TERM=xterm-256color"
 Environment="COLUMNS=80"
 Environment="PROMPT_COMMAND="
-Environment="PS1=[\\u@\\h \\W]\\$\\$ "
+Environment="PS1=[\\\\u@\\\\h \\\\W]\\\\$ "
 
 [Install]
 WantedBy=default.target
