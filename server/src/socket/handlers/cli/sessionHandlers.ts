@@ -5,6 +5,7 @@ import type { ModelMode, PermissionMode } from '@hapi/protocol/types'
 import type { Store, StoredSession } from '../../../store'
 import type { SyncEvent } from '../../../sync/syncEngine'
 import { extractTodoWriteTodosFromMessageContent } from '../../../sync/todos'
+import { handleMessageHistoryModification } from '../../../sync/messageHistoryHandlers'
 import type { CliSocketWithData } from '../../socketTypes'
 
 type SessionAlivePayload = {
@@ -33,6 +34,10 @@ type EmitAccessError = (scope: 'session' | 'machine', id: string, reason: Access
 
 type UpdateMetadataHandler = ClientToServerEvents['update-metadata']
 type UpdateStateHandler = ClientToServerEvents['update-state']
+
+function isObject(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null
+}
 
 const messageSchema = z.object({
     sid: z.string(),
@@ -89,6 +94,34 @@ export function registerSessionHandlers(socket: CliSocketWithData, deps: Session
             return
         }
         const session = sessionAccess.value
+
+        // Check for microcompact_boundary event BEFORE storing the message
+        const isMicrocompactBoundary =
+            isObject(content) &&
+            content.type === 'output' &&
+            isObject(content.data) &&
+            content.data.type === 'system' &&
+            content.data.subtype === 'microcompact_boundary'
+
+        if (isMicrocompactBoundary) {
+            console.log(`[sessionHandlers] Detected microcompact_boundary for session ${sid}`)
+
+            const result = handleMessageHistoryModification(
+                store,
+                sid,
+                session,
+                'microcompact'
+            )
+
+            if (result.success) {
+                // Emit session-updated event so frontends know to refresh
+                onWebappEvent?.({
+                    type: 'session-updated',
+                    sessionId: sid,
+                    data: { sid }
+                })
+            }
+        }
 
         const msg = store.messages.addMessage(sid, content, localId)
 

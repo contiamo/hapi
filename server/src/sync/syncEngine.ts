@@ -19,6 +19,7 @@ import { MessageService } from './messageService'
 import { RpcGateway, type RpcCommandResponse, type RpcPathExistsResponse, type RpcReadFileResponse, type RpcUploadFileResponse, type RpcDeleteUploadResponse } from './rpcGateway'
 import { SessionCache } from './sessionCache'
 import { getConfiguration } from '../configuration'
+import { handleMessageHistoryModification } from './messageHistoryHandlers'
 
 export type { Session, SyncEvent } from '@hapi/protocol/types'
 export type { Machine } from './machineCache'
@@ -213,6 +214,23 @@ export class SyncEngine {
 
     clearSessionMessages(sessionId: string): number {
         const count = this.store.messages.deleteAllMessages(sessionId)
+
+        // Clear agentState to remove orphaned tool blocks and permissions
+        const session = this.store.sessions.getSession(sessionId)
+        if (session) {
+            const result = handleMessageHistoryModification(
+                this.store,
+                sessionId,
+                session,
+                'clear'
+            )
+
+            if (result.success) {
+                this.sessionCache.refreshSession(sessionId)
+            } else {
+                console.error(`[SyncEngine] Failed to clear agentState: ${result.error}`)
+            }
+        }
 
         this.eventPublisher.emit({
             type: 'messages-cleared',

@@ -265,6 +265,9 @@ export function HappyThread(props: {
         prevLoadingMoreRef.current = props.isLoadingMoreMessages
     }, [props.isLoadingMoreMessages])
 
+    // TODO: Add virtual scrolling with @tanstack/react-virtual for conversations with 1000+ messages
+    // The library is already installed, but requires refactoring the ThreadPrimitive.Messages integration
+    // See: https://tanstack.com/virtual/latest/docs/framework/react/examples/variable
     return (
         <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col relative">
             <ThreadPrimitive.Viewport asChild autoScroll={autoScrollEnabled}>
