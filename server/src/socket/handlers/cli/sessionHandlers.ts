@@ -104,7 +104,11 @@ export function registerSessionHandlers(socket: CliSocketWithData, deps: Session
             content.data.subtype === 'microcompact_boundary'
 
         if (isMicrocompactBoundary) {
-            console.log(`[sessionHandlers] Detected microcompact_boundary for session ${sid}`)
+            console.log('[sessionHandlers:microcompact]', {
+                sessionId: sid,
+                contentType: isObject(content.data) ? content.data.type : 'unknown',
+                timestamp: Date.now()
+            })
 
             const result = handleMessageHistoryModification(
                 store,
@@ -119,6 +123,18 @@ export function registerSessionHandlers(socket: CliSocketWithData, deps: Session
                     type: 'session-updated',
                     sessionId: sid,
                     data: { sid }
+                })
+                console.log('[sessionHandlers:microcompact]', {
+                    sessionId: sid,
+                    eventEmitted: 'session-updated',
+                    timestamp: Date.now()
+                })
+            } else {
+                console.error('[sessionHandlers:microcompact]', {
+                    sessionId: sid,
+                    error: result.error,
+                    eventEmitted: false,
+                    timestamp: Date.now()
                 })
             }
         }

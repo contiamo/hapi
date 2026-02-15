@@ -213,7 +213,19 @@ export class SyncEngine {
     }
 
     clearSessionMessages(sessionId: string): number {
+        console.log('[SyncEngine:clear]', {
+            sessionId,
+            action: 'deleting-messages',
+            timestamp: Date.now()
+        })
+
         const count = this.store.messages.deleteAllMessages(sessionId)
+
+        console.log('[SyncEngine:clear]', {
+            sessionId,
+            messagesDeleted: count,
+            timestamp: Date.now()
+        })
 
         // Clear agentState to remove orphaned tool blocks and permissions
         const session = this.store.sessions.getSession(sessionId)
@@ -227,8 +239,18 @@ export class SyncEngine {
 
             if (result.success) {
                 this.sessionCache.refreshSession(sessionId)
+                console.log('[SyncEngine:clear]', {
+                    sessionId,
+                    cacheRefreshed: true,
+                    timestamp: Date.now()
+                })
             } else {
-                console.error(`[SyncEngine] Failed to clear agentState: ${result.error}`)
+                console.error('[SyncEngine:clear]', {
+                    sessionId,
+                    error: result.error,
+                    cacheRefreshed: false,
+                    timestamp: Date.now()
+                })
             }
         }
 
@@ -237,7 +259,13 @@ export class SyncEngine {
             sessionId
         })
 
-        console.log(`[SyncEngine] Cleared ${count} messages for session ${sessionId}`)
+        console.log('[SyncEngine:clear]', {
+            sessionId,
+            eventEmitted: 'messages-cleared',
+            totalMessagesCleared: count,
+            timestamp: Date.now()
+        })
+
         return count
     }
 
