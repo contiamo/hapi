@@ -30,7 +30,25 @@ export function handleMessageHistoryModification(
     session: StoredSession,
     reason: MessageHistoryModificationReason
 ): MessageHistoryModificationResult {
-    console.log(`[messageHistory] Clearing agentState for session ${sessionId} (reason: ${reason})`)
+    // Capture agentState stats before clearing for audit trail
+    const agentState = session.agentState as { completedRequests?: Array<{ id: string }> } | null | undefined
+    const completedRequests = agentState?.completedRequests ?? []
+    const requestIds = completedRequests.map((r) => r.id)
+    const firstTwo = requestIds.slice(0, 2)
+    const lastTwo = requestIds.slice(-2)
+
+    console.log('[messageHistory:audit]', {
+        action: reason,
+        sessionId,
+        active: session.active,
+        before: {
+            agentStateExists: session.agentState !== null,
+            completedRequestsCount: completedRequests.length,
+            firstRequests: firstTwo,
+            lastRequests: completedRequests.length > 2 ? lastTwo : [],
+        },
+        timestamp: Date.now()
+    })
 
     // Safety check: warn if session is active (may cause tool execution issues)
     if (session.active) {
@@ -49,7 +67,12 @@ export function handleMessageHistoryModification(
     )
 
     if (result.result === 'success') {
-        console.log(`[messageHistory] Successfully cleared agentState for session ${sessionId}`)
+        console.log('[messageHistory:audit]', {
+            action: reason,
+            sessionId,
+            result: 'success',
+            timestamp: Date.now()
+        })
         return { success: true }
     }
 
@@ -68,17 +91,34 @@ export function handleMessageHistoryModification(
         )
 
         if (retryResult.result === 'success') {
-            console.log(`[messageHistory] Successfully cleared agentState on retry for session ${sessionId}`)
+            console.log('[messageHistory:audit]', {
+                action: reason,
+                sessionId,
+                result: 'success-after-retry',
+                timestamp: Date.now()
+            })
             return { success: true }
         }
 
         const error = `Failed to clear agentState after version-mismatch retry: ${retryResult.result}`
-        console.error(`[messageHistory] ${error}`)
+        console.error('[messageHistory:audit]', {
+            action: reason,
+            sessionId,
+            result: 'error',
+            error,
+            timestamp: Date.now()
+        })
         return { success: false, error }
     }
 
     // Other error
     const error = `Failed to clear agentState: ${result.result}`
-    console.error(`[messageHistory] ${error}`)
+    console.error('[messageHistory:audit]', {
+        action: reason,
+        sessionId,
+        result: 'error',
+        error,
+        timestamp: Date.now()
+    })
     return { success: false, error }
 }
