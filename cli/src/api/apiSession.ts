@@ -66,7 +66,7 @@ export class ApiSessionClient extends EventEmitter {
         })
 
         if (this.metadata?.path) {
-            registerCommonHandlers(this.rpcHandlerManager, this.metadata.path)
+            registerCommonHandlers(this.rpcHandlerManager, this.metadata.path, () => this)
         }
 
         this.socket = io(`${configuration.apiUrl}/cli`, {
@@ -236,6 +236,13 @@ export class ApiSessionClient extends EventEmitter {
         }
 
         this.emit('message', message.content)
+    }
+
+    /**
+     * Get current session metadata
+     */
+    getMetadata(): Metadata | null {
+        return this.metadata
     }
 
     private async backfillIfNeeded(): Promise<void> {

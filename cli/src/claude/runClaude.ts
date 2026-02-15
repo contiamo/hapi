@@ -5,6 +5,7 @@ import { EnhancedMode, PermissionMode } from './loop';
 import { MessageQueue2 } from '@/utils/MessageQueue2';
 import { hashObject } from '@/utils/deterministicJson';
 import { extractSDKMetadataAsync } from '@/claude/sdk/metadataExtractor';
+import { buildSlashCommandList, scanUserCommands } from '@/modules/common/slashCommands';
 import { parseSpecialCommand } from '@/parsers/specialCommands';
 import { getEnvironmentInfo } from '@/ui/doctor';
 import { startHappyServer } from '@/claude/utils/startHappyServer';
@@ -58,19 +59,43 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
     });
     logger.debug(`Session created: ${sessionInfo.id}`);
 
-    // Extract SDK metadata in background and update session when ready
+    // Extract SDK metadata and scan user commands asynchronously (non-blocking startup)
     extractSDKMetadataAsync(async (sdkMetadata) => {
-        logger.debug('[start] SDK metadata extracted, updating session:', sdkMetadata);
+        logger.debug('[start] ===== SDK METADATA EXTRACTION CALLBACK START =====');
+        logger.debug('[start] SDK metadata - slashCommands:', sdkMetadata.slashCommands?.length || 0, 'tools:', sdkMetadata.tools?.length || 0);
+        logger.debug('[start] SDK slashCommands:', sdkMetadata.slashCommands);
+
         try {
-            // Update session metadata with tools and slash commands
-            session.updateMetadata((currentMetadata) => ({
-                ...currentMetadata,
-                tools: sdkMetadata.tools,
-                slashCommands: sdkMetadata.slashCommands
-            }));
-            logger.debug('[start] Session metadata updated with SDK capabilities');
+            // Scan user commands from ~/.claude/commands/
+            const userCommands = await scanUserCommands('claude').catch(err => {
+                logger.warn('[start] Failed to scan user commands:', err);
+                return [];
+            });
+
+            logger.debug('[start] Found user commands:', userCommands.length);
+
+            // Build merged slash command list (intercepted + SDK + user)
+            const slashCommands = buildSlashCommandList('claude', sdkMetadata.slashCommands, userCommands);
+            logger.debug('[start] Built complete slash command list:', slashCommands.length, 'commands');
+            logger.debug('[start] Command names:', slashCommands.map(c => c.name).join(', '));
+
+            // Update session metadata with tools and merged slash commands
+            session.updateMetadata((currentMetadata) => {
+                logger.debug('[start] BEFORE updateMetadata - current slashCommands:', currentMetadata.slashCommands?.length || 'none');
+                return {
+                    ...currentMetadata,
+                    tools: sdkMetadata.tools,
+                    slashCommands  // Merged list: intercepted + SDK + user
+                };
+            });
+
+            // Verify update
+            const updatedMetadata = session.getMetadata();
+            logger.debug('[start] AFTER updateMetadata - slashCommands:', updatedMetadata?.slashCommands?.length || 'none');
+            logger.debug('[start] ===== SDK METADATA EXTRACTION CALLBACK COMPLETE =====');
         } catch (error) {
-            logger.debug('[start] Failed to update session metadata:', error);
+            logger.warn('[start] Failed to build slash command list:', error);
+            // Graceful degradation - RPC handler will use fallback
         }
     });
 

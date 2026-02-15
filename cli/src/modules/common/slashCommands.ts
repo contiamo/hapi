@@ -2,23 +2,13 @@ import { readdir, readFile } from 'fs/promises';
 import { join } from 'path';
 import { homedir } from 'os';
 import { parse as parseYaml } from 'yaml';
-
-export interface SlashCommand {
-    name: string;
-    description?: string;
-    source: 'builtin' | 'user';
-    content?: string;  // Expanded content for Codex user prompts
-}
+import type { SlashCommand, SlashCommandsResponse } from '@hapi/protocol/types';
 
 export interface ListSlashCommandsRequest {
     agent: string;
 }
 
-export interface ListSlashCommandsResponse {
-    success: boolean;
-    commands?: SlashCommand[];
-    error?: string;
-}
+export type { SlashCommandsResponse as ListSlashCommandsResponse };
 
 /**
  * Built-in slash commands for each agent type.
@@ -43,6 +33,69 @@ const BUILTIN_COMMANDS: Record<string, SlashCommand[]> = {
         { name: 'compress', description: 'Compress context', source: 'builtin' },
     ],
 };
+
+/**
+ * Build merged slash command list combining HAPI-intercepted commands with SDK-discovered and user commands.
+ *
+ * IMPORTANT: /clear and /compact are intercepted by HAPI for session lifecycle management.
+ * Their descriptions reflect HAPI's behavior, not SDK's native behavior.
+ *
+ * Priority order: Intercepted > SDK > User
+ * - Intercepted commands cannot be overridden (critical for session management)
+ * - SDK commands take precedence over user commands
+ * - User commands that conflict with intercepted or SDK are filtered out
+ *
+ * @param agent - Agent type (only 'claude' supports SDK discovery)
+ * @param sdkCommands - Command names from SDK metadata (optional)
+ * @param userCommands - User-defined commands from ~/.claude/commands (optional)
+ * @returns Merged list with deduplication applied
+ */
+export function buildSlashCommandList(
+    agent: string,
+    sdkCommands?: string[],
+    userCommands?: SlashCommand[]
+): SlashCommand[] {
+    // Intercepted commands with HAPI-specific descriptions
+    const intercepted: SlashCommand[] = [
+        {
+            name: 'clear',
+            description: 'Complete context and session reset (nuclear option - starts fresh Claude process)',
+            source: 'builtin'
+        },
+        {
+            name: 'compact',
+            description: 'Compress context while preserving session (isolated from other messages)',
+            source: 'builtin'
+        }
+    ];
+
+    // If no commands provided or non-Claude agent, return only intercepted
+    if ((!sdkCommands && !userCommands) || agent !== 'claude') {
+        return intercepted;
+    }
+
+    // Track intercepted command names for deduplication
+    const interceptedNames = new Set(intercepted.map(c => c.name));
+
+    // Convert SDK command names to SlashCommand objects (filter duplicates)
+    const sdkSlashCommands: SlashCommand[] = (sdkCommands ?? [])
+        .filter(name => !interceptedNames.has(name))
+        .map(name => ({
+            name,
+            description: 'Claude SDK command',
+            source: 'sdk' as const
+        }));
+
+    // Track SDK command names for deduplication
+    const sdkNames = new Set(sdkSlashCommands.map(c => c.name));
+
+    // Filter user commands (remove conflicts with intercepted and SDK)
+    const filteredUserCommands = (userCommands ?? [])
+        .filter(cmd => !interceptedNames.has(cmd.name) && !sdkNames.has(cmd.name));
+
+    // Merge: intercepted (highest priority) > SDK > user (lowest priority)
+    return [...intercepted, ...sdkSlashCommands, ...filteredUserCommands];
+}
 
 /**
  * Parse frontmatter from a markdown file content.
@@ -92,7 +145,7 @@ function getUserCommandsDir(agent: string): string | null {
  * For Codex, reads file content and parses frontmatter.
  * Returns the command names (filename without extension).
  */
-async function scanUserCommands(agent: string): Promise<SlashCommand[]> {
+export async function scanUserCommands(agent: string): Promise<SlashCommand[]> {
     const dir = getUserCommandsDir(agent);
     if (!dir) {
         return [];

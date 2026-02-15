@@ -6,6 +6,8 @@ export type {
     DecryptedMessage,
     Metadata,
     Session,
+    SlashCommand,
+    SlashCommandsResponse,
     SyncEvent,
     TodoItem,
     WorktreeMetadata
