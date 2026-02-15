@@ -19,6 +19,24 @@ export const WorktreeMetadataSchema = z.object({
 
 export type WorktreeMetadata = z.infer<typeof WorktreeMetadataSchema>
 
+export const SlashCommandSchema = z.object({
+    name: z.string(),
+    description: z.string().optional(),
+    source: z.enum(['builtin', 'user', 'sdk']),
+    content: z.string().optional()
+})
+
+export type SlashCommand = z.infer<typeof SlashCommandSchema>
+
+export const SlashCommandsResponseSchema = z.object({
+    success: z.boolean(),
+    loading: z.boolean().optional(),
+    commands: z.array(SlashCommandSchema).optional(),
+    error: z.string().optional()
+})
+
+export type SlashCommandsResponse = z.infer<typeof SlashCommandsResponseSchema>
+
 export const MetadataSchema = z.object({
     path: z.string(),
     host: z.string(),
@@ -31,7 +49,7 @@ export const MetadataSchema = z.object({
     codexSessionId: z.string().optional(),
     geminiSessionId: z.string().optional(),
     tools: z.array(z.string()).optional(),
-    slashCommands: z.array(z.string()).optional(),
+    slashCommands: z.array(SlashCommandSchema).optional(),
     homeDir: z.string().optional(),
     happyHomeDir: z.string().optional(),
     happyLibDir: z.string().optional(),

@@ -22,19 +22,13 @@ function levenshteinDistance(a: string, b: string): number {
 }
 
 /**
- * Built-in slash commands per agent type.
- * These are shown immediately without waiting for RPC.
+ * Fallback slash commands shown while RPC loads.
+ * For Claude, only intercepted commands. For other agents, full hardcoded list.
  */
-const BUILTIN_COMMANDS: Record<string, SlashCommand[]> = {
+const FALLBACK_COMMANDS: Record<string, SlashCommand[]> = {
     claude: [
-        { name: 'clear', description: 'Clear conversation history and free up context', source: 'builtin' },
-        { name: 'compact', description: 'Clear conversation history but keep a summary in context', source: 'builtin' },
-        { name: 'context', description: 'Visualize current context usage as a colored grid', source: 'builtin' },
-        { name: 'cost', description: 'Show the total cost and duration of the current session', source: 'builtin' },
-        { name: 'doctor', description: 'Diagnose and verify your Claude Code installation and settings', source: 'builtin' },
-        { name: 'plan', description: 'View or open the current session plan', source: 'builtin' },
-        { name: 'stats', description: 'Show your Claude Code usage statistics and activity', source: 'builtin' },
-        { name: 'status', description: 'Show Claude Code status including version, model, account, and API connectivity', source: 'builtin' },
+        { name: 'clear', description: 'Complete context and session reset', source: 'builtin' },
+        { name: 'compact', description: 'Compress context while preserving session', source: 'builtin' }
     ],
     codex: [
         { name: 'review', description: 'Review current changes and find issues', source: 'builtin' },
@@ -79,19 +73,21 @@ export function useSlashCommands(
         retry: false, // Don't retry RPC failures
     })
 
-    // Merge built-in commands with user-defined commands from API
+    // Use API response as source of truth (includes SDK + user commands for Claude)
     const commands = useMemo(() => {
-        const builtin = BUILTIN_COMMANDS[agentType] ?? BUILTIN_COMMANDS['claude'] ?? []
-
-        // If API succeeded, add user-defined commands
+        // If API succeeded, use its response (includes intercepted + SDK + user commands for Claude)
         if (query.data?.success && query.data.commands) {
-            const userCommands = query.data.commands.filter(cmd => cmd.source === 'user')
-            return [...builtin, ...userCommands]
+            return query.data.commands;
         }
 
-        // Fallback to built-in commands only
-        return builtin
+        // Fallback: Show only critical commands while loading
+        return FALLBACK_COMMANDS[agentType] ?? FALLBACK_COMMANDS['claude'] ?? [];
     }, [agentType, query.data])
+
+    // Track loading state: React Query loading OR API returned loading:true
+    const isLoading = useMemo(() => {
+        return query.isLoading || (query.data?.loading === true);
+    }, [query.isLoading, query.data?.loading]);
 
     const getSuggestions = useCallback(async (queryText: string): Promise<Suggestion[]> => {
         const searchTerm = queryText.startsWith('/')
@@ -137,7 +133,7 @@ export function useSlashCommands(
 
     return {
         commands,
-        isLoading: query.isLoading,
+        isLoading,
         error: query.error instanceof Error ? query.error.message : query.error ? 'Failed to load commands' : null,
         getSuggestions,
     }
