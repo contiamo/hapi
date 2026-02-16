@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ThreadPrimitive } from '@assistant-ui/react'
+import { ThreadPrimitive, useAssistantState } from '@assistant-ui/react'
 import type { ApiClient } from '@/api/client'
 import type { SessionMetadataSummary } from '@/types/api'
 import { HappyAssistantMessage } from '@/components/AssistantChat/messages/AssistantMessage'
 import { HappyUserMessage } from '@/components/AssistantChat/messages/UserMessage'
 import { HappySystemMessage } from '@/components/AssistantChat/messages/SystemMessage'
+import { VirtualMessageList, type VirtualMessageListHandle } from '@/components/AssistantChat/VirtualMessageList'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/Spinner'
 import { useTranslation } from '@/lib/use-translation'
@@ -76,6 +77,7 @@ export function HappyThread(props: {
 }) {
     const { t } = useTranslation()
     const viewportRef = useRef<HTMLDivElement | null>(null)
+    const virtualizerRef = useRef<VirtualMessageListHandle | null>(null)
     const topSentinelRef = useRef<HTMLDivElement | null>(null)
     const loadLockRef = useRef(false)
     const pendingScrollRef = useRef<{ scrollTop: number; scrollHeight: number } | null>(null)
@@ -94,6 +96,9 @@ export function HappyThread(props: {
     // Smart scroll state: autoScroll enabled when user is near bottom
     const [autoScrollEnabled, setAutoScrollEnabled] = useState(true)
     const autoScrollEnabledRef = useRef(autoScrollEnabled)
+
+    // Get messages count for virtual scrolling
+    const messagesCount = useAssistantState(({ thread }) => thread.messages.length)
 
     // Keep refs in sync with state
     useEffect(() => {
@@ -147,9 +152,13 @@ export function HappyThread(props: {
 
     // Scroll to bottom handler for the indicator button
     const scrollToBottom = useCallback(() => {
-        const viewport = viewportRef.current
-        if (viewport) {
-            viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' })
+        if (virtualizerRef.current && messagesCount > 0) {
+            virtualizerRef.current.scrollToIndex(messagesCount - 1, { behavior: 'smooth' })
+        } else {
+            const viewport = viewportRef.current
+            if (viewport) {
+                viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' })
+            }
         }
         setAutoScrollEnabled(true)
         if (!atBottomRef.current) {
@@ -157,7 +166,7 @@ export function HappyThread(props: {
             onAtBottomChangeRef.current(true)
         }
         onFlushPendingRef.current()
-    }, [])
+    }, [messagesCount])
 
     // Reset state when session changes
     useEffect(() => {
@@ -174,6 +183,13 @@ export function HappyThread(props: {
         forceScrollTokenRef.current = props.forceScrollToken
         scrollToBottom()
     }, [props.forceScrollToken, scrollToBottom])
+
+    // Auto-scroll to bottom when messages change and autoScroll is enabled
+    useEffect(() => {
+        if (autoScrollEnabled && messagesCount > 0 && virtualizerRef.current) {
+            virtualizerRef.current.scrollToIndex(messagesCount - 1, { behavior: 'auto' })
+        }
+    }, [messagesCount, autoScrollEnabled])
 
     const handleLoadMore = useCallback(() => {
         if (isLoadingMessagesRef.current || !hasMoreMessagesRef.current || isLoadingMoreRef.current || loadLockRef.current) {
@@ -265,12 +281,9 @@ export function HappyThread(props: {
         prevLoadingMoreRef.current = props.isLoadingMoreMessages
     }, [props.isLoadingMoreMessages])
 
-    // TODO: Add virtual scrolling with @tanstack/react-virtual for conversations with 1000+ messages
-    // The library is already installed, but requires refactoring the ThreadPrimitive.Messages integration
-    // See: https://tanstack.com/virtual/latest/docs/framework/react/examples/variable
     return (
         <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col relative">
-            <ThreadPrimitive.Viewport asChild autoScroll={autoScrollEnabled}>
+            <ThreadPrimitive.Viewport asChild autoScroll={false}>
                 <div ref={viewportRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
                     <div className="mx-auto w-full max-w-content min-w-0 p-3">
                         <div ref={topSentinelRef} className="h-px w-full" aria-hidden="true" />
@@ -319,7 +332,11 @@ export function HappyThread(props: {
                             </>
                         )}
                         <div className="flex flex-col gap-3">
-                            <ThreadPrimitive.Messages components={THREAD_MESSAGE_COMPONENTS} />
+                            <VirtualMessageList
+                                ref={virtualizerRef}
+                                components={THREAD_MESSAGE_COMPONENTS}
+                                parentRef={viewportRef}
+                            />
                         </div>
                     </div>
                 </div>
