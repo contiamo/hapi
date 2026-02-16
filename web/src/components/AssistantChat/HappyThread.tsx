@@ -331,7 +331,7 @@ export function HappyThread(props: {
                                 ) : null}
                             </>
                         )}
-                        <div className="flex flex-col gap-3">
+                        <div className="flex flex-col">
                             <VirtualMessageList
                                 ref={virtualizerRef}
                                 components={THREAD_MESSAGE_COMPONENTS}

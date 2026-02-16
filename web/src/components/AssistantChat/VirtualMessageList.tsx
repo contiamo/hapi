@@ -27,7 +27,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMe
         const virtualizer = useVirtualizer({
             count: messagesCount,
             getScrollElement: () => props.parentRef.current,
-            estimateSize: () => 200,
+            estimateSize: () => 212, // 200px base + 12px gap (0.75rem)
             overscan: 5,
             measureElement:
                 typeof window !== 'undefined' && navigator.userAgent.indexOf('Firefox') === -1
@@ -72,22 +72,22 @@ export const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMe
             >
                 {items.map((virtualItem) => (
                     <div
-                        key={virtualItem.key}
-                        data-index={virtualItem.index}
-                        ref={virtualizer.measureElement}
-                        style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: '100%',
-                            transform: `translateY(${virtualItem.start}px)`,
-                        }}
-                    >
-                        <ThreadPrimitive.MessageByIndex
-                            index={virtualItem.index}
-                            components={props.components}
-                        />
-                    </div>
+                            key={virtualItem.key}
+                            data-index={virtualItem.index}
+                            ref={virtualizer.measureElement}
+                            style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                transform: `translateY(${virtualItem.start}px)`,
+                            }}
+                        >
+                            <ThreadPrimitive.MessageByIndex
+                                index={virtualItem.index}
+                                components={props.components}
+                            />
+                        </div>
                 ))}
             </div>
         )
