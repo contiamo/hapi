@@ -1,5 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useRef, useImperativeHandle, forwardRef, useEffect, useState, type ComponentType } from 'react'
+import { useImperativeHandle, forwardRef, useEffect, useState, type ComponentType } from 'react'
 import { ThreadPrimitive, useAssistantState } from '@assistant-ui/react'
 
 export type VirtualMessageListHandle = {
@@ -22,15 +22,14 @@ type VirtualMessageListProps = {
 export const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageListProps>(
     function VirtualMessageList(props, ref) {
         const messagesCount = useAssistantState((state) => state.thread.messages.length)
-        const scrollingRef = useRef<number | undefined>(undefined)
 
         // Track the scroll element in state so the virtualizer re-initializes when it becomes available.
-        // parentRef.current may be null on first render; this ensures the virtualizer observes the
-        // scroll element once it's mounted.
+        // parentRef.current is null on first render; setting it in an effect triggers a re-render once
+        // the parent scroll container is mounted, causing the virtualizer to observe it.
         const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null)
         useEffect(() => {
             setScrollElement(props.parentRef.current)
-        }, [props.parentRef])
+        }, []) // eslint-disable-line react-hooks/exhaustive-deps -- intentionally mount-only
 
         const virtualizer = useVirtualizer({
             count: messagesCount,
@@ -39,7 +38,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMe
             overscan: 5,
             measureElement:
                 typeof window !== 'undefined' && navigator.userAgent.indexOf('Firefox') === -1
-                    ? (element) => element?.getBoundingClientRect().height
+                    ? (element) => element?.getBoundingClientRect().height ?? 0
                     : undefined,
         })
 
@@ -80,22 +79,25 @@ export const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMe
             >
                 {items.map((virtualItem) => (
                     <div
-                            key={virtualItem.key}
-                            data-index={virtualItem.index}
-                            ref={virtualizer.measureElement}
-                            style={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                width: '100%',
-                                transform: `translateY(${virtualItem.start}px)`,
-                            }}
-                        >
-                            <ThreadPrimitive.MessageByIndex
-                                index={virtualItem.index}
-                                components={props.components}
-                            />
-                        </div>
+                        key={virtualItem.key}
+                        data-index={virtualItem.index}
+                        ref={virtualizer.measureElement}
+                        style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            transform: `translateY(${virtualItem.start}px)`,
+                            // Include gap in measured height so position calculations stay accurate
+                            // as items are measured and replace the initial estimate
+                            marginBottom: '0.75rem',
+                        }}
+                    >
+                        <ThreadPrimitive.MessageByIndex
+                            index={virtualItem.index}
+                            components={props.components}
+                        />
+                    </div>
                 ))}
             </div>
         )
