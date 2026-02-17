@@ -184,12 +184,14 @@ export function HappyThread(props: {
         scrollToBottom()
     }, [props.forceScrollToken, scrollToBottom])
 
-    // Auto-scroll to bottom when messages change and autoScroll is enabled
+    // Auto-scroll to bottom when new messages arrive and the user is near the bottom.
+    // Only depends on messagesCount — including autoScrollEnabled would re-trigger this
+    // when the user manually scrolls back to the bottom, causing a redundant scroll.
     useEffect(() => {
-        if (autoScrollEnabled && messagesCount > 0 && virtualizerRef.current) {
+        if (autoScrollEnabledRef.current && messagesCount > 0 && virtualizerRef.current) {
             virtualizerRef.current.scrollToIndex(messagesCount - 1, { behavior: 'auto' })
         }
-    }, [messagesCount, autoScrollEnabled])
+    }, [messagesCount])
 
     const handleLoadMore = useCallback(() => {
         if (isLoadingMessagesRef.current || !hasMoreMessagesRef.current || isLoadingMoreRef.current || loadLockRef.current) {
