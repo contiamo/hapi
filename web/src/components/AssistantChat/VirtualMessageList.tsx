@@ -1,5 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useRef, useImperativeHandle, forwardRef, type ComponentType } from 'react'
+import { useRef, useImperativeHandle, forwardRef, useEffect, useState, type ComponentType } from 'react'
 import { ThreadPrimitive, useAssistantState } from '@assistant-ui/react'
 
 export type VirtualMessageListHandle = {
@@ -24,9 +24,17 @@ export const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMe
         const messagesCount = useAssistantState((state) => state.thread.messages.length)
         const scrollingRef = useRef<number | undefined>(undefined)
 
+        // Track the scroll element in state so the virtualizer re-initializes when it becomes available.
+        // parentRef.current may be null on first render; this ensures the virtualizer observes the
+        // scroll element once it's mounted.
+        const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null)
+        useEffect(() => {
+            setScrollElement(props.parentRef.current)
+        }, [props.parentRef])
+
         const virtualizer = useVirtualizer({
             count: messagesCount,
-            getScrollElement: () => props.parentRef.current,
+            getScrollElement: () => scrollElement,
             estimateSize: () => 212, // 200px base + 12px gap (0.75rem)
             overscan: 5,
             measureElement:
