@@ -5,7 +5,7 @@ import { EnhancedMode, PermissionMode } from './loop';
 import { MessageQueue2 } from '@/utils/MessageQueue2';
 import { hashObject } from '@/utils/deterministicJson';
 import { extractSDKMetadataAsync } from '@/claude/sdk/metadataExtractor';
-import { buildSlashCommandList, scanUserCommands } from '@/modules/common/slashCommands';
+import { buildSlashCommandList } from '@/modules/common/slashCommands';
 import { parseSpecialCommand } from '@/parsers/specialCommands';
 import { getEnvironmentInfo } from '@/ui/doctor';
 import { startHappyServer } from '@/claude/utils/startHappyServer';
@@ -59,19 +59,14 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
     });
     logger.debug(`Session created: ${sessionInfo.id}`);
 
-    // Extract SDK metadata and scan user commands asynchronously (non-blocking startup)
+    // Extract Claude Code metadata asynchronously (non-blocking startup)
     extractSDKMetadataAsync(async (sdkMetadata) => {
-        logger.debug('[start] SDK metadata extracted, scanning user commands');
+        logger.debug('[start] Claude Code metadata extracted');
 
         try {
-            // Scan user commands from ~/.claude/commands/
-            const userCommands = await scanUserCommands('claude').catch(err => {
-                logger.warn('[start] Failed to scan user commands:', err);
-                return [];
-            });
-
-            // Build merged slash command list (intercepted + SDK + user)
-            const slashCommands = buildSlashCommandList('claude', sdkMetadata.slashCommands, userCommands);
+            // Claude Code's init message already includes all commands (built-ins, user skills,
+            // project skills, plugin skills) - no separate directory scan needed.
+            const slashCommands = buildSlashCommandList('claude', sdkMetadata.slashCommands);
             logger.debug('[start] Built slash command list:', slashCommands.length, 'commands');
 
             session.updateMetadata((currentMetadata) => ({

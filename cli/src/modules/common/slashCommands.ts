@@ -35,24 +35,28 @@ const BUILTIN_COMMANDS: Record<string, SlashCommand[]> = {
 };
 
 /**
- * Build merged slash command list combining HAPI-intercepted commands with SDK-discovered and user commands.
+ * Build merged slash command list combining HAPI-intercepted commands with
+ * Claude Code-reported commands.
  *
  * IMPORTANT: /clear and /compact are intercepted by HAPI for session lifecycle management.
- * Their descriptions reflect HAPI's behavior, not SDK's native behavior.
+ * Their descriptions reflect HAPI's behavior, not Claude Code's native behavior.
  *
- * Priority order: Intercepted > SDK > User
+ * For Claude, the full command list (built-ins, user skills, project skills, plugins)
+ * is already provided by the Claude Code init message, so no separate user-directory
+ * scan is needed. For other agents (Codex), user commands are passed in explicitly.
+ *
+ * Priority order: Intercepted > Claude Code-reported > user (Codex only)
  * - Intercepted commands cannot be overridden (critical for session management)
- * - SDK commands take precedence over user commands
- * - User commands that conflict with intercepted or SDK are filtered out
+ * - Claude Code-reported commands take precedence over Codex user commands
  *
- * @param agent - Agent type (only 'claude' supports SDK discovery)
- * @param sdkCommands - Command names from SDK metadata (optional)
- * @param userCommands - User-defined commands from ~/.claude/commands (optional)
+ * @param agent - Agent type
+ * @param claudeCodeCommands - Command names from the Claude Code init message (Claude only)
+ * @param userCommands - User-defined commands scanned from disk (Codex only)
  * @returns Merged list with deduplication applied
  */
 export function buildSlashCommandList(
     agent: string,
-    sdkCommands?: string[],
+    claudeCodeCommands?: string[],
     userCommands?: SlashCommand[]
 ): SlashCommand[] {
     // Intercepted commands with HAPI-specific descriptions
@@ -69,39 +73,28 @@ export function buildSlashCommandList(
         }
     ];
 
-    // If no commands provided or non-Claude agent, return only intercepted
-    if ((!sdkCommands && !userCommands) || agent !== 'claude') {
-        return intercepted;
-    }
-
-    // Track intercepted command names for deduplication
     const interceptedNames = new Set(intercepted.map(c => c.name));
 
-    // Convert SDK command names to SlashCommand objects (filter duplicates)
-    // The SDK may report the same command twice when it appears at multiple scopes
-    // (e.g. a skill in both ~/.claude/skills/ and .claude/skills/), so deduplicate here.
-    const seenSdkNames = new Set<string>();
-    const sdkSlashCommands: SlashCommand[] = (sdkCommands ?? [])
-        .filter(name => {
-            if (interceptedNames.has(name) || seenSdkNames.has(name)) return false;
-            seenSdkNames.add(name);
-            return true;
-        })
-        .map(name => ({
-            name,
-            description: 'Claude SDK command',
-            source: 'sdk' as const
-        }));
+    if (agent === 'claude') {
+        // For Claude, the init message already includes everything (built-ins, user skills,
+        // project skills, plugin skills). Deduplicate across scopes and strip intercepted names.
+        const seen = new Set<string>();
+        const claudeCommands: SlashCommand[] = (claudeCodeCommands ?? [])
+            .filter(name => {
+                if (interceptedNames.has(name) || seen.has(name)) return false;
+                seen.add(name);
+                return true;
+            })
+            .map(name => ({ name, description: 'Claude Code command', source: 'claude' as const }));
 
-    // Track SDK command names for deduplication
-    const sdkNames = new Set(sdkSlashCommands.map(c => c.name));
+        return [...intercepted, ...claudeCommands];
+    }
 
-    // Filter user commands (remove conflicts with intercepted and SDK)
+    // For other agents (Codex), merge intercepted with user-scanned commands.
     const filteredUserCommands = (userCommands ?? [])
-        .filter(cmd => !interceptedNames.has(cmd.name) && !sdkNames.has(cmd.name));
+        .filter(cmd => !interceptedNames.has(cmd.name));
 
-    // Merge: intercepted (highest priority) > SDK > user (lowest priority)
-    return [...intercepted, ...sdkSlashCommands, ...filteredUserCommands];
+    return [...intercepted, ...filteredUserCommands];
 }
 
 /**

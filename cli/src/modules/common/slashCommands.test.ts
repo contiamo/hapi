@@ -19,11 +19,11 @@ describe('buildSlashCommandList', () => {
         expect(result[1].name).toBe('compact')
         expect(result[1].source).toBe('builtin')
         expect(result[2].name).toBe('skills')
-        expect(result[2].source).toBe('sdk')
+        expect(result[2].source).toBe('claude')
         expect(result[3].name).toBe('help')
-        expect(result[3].source).toBe('sdk')
+        expect(result[3].source).toBe('claude')
         expect(result[4].name).toBe('context')
-        expect(result[4].source).toBe('sdk')
+        expect(result[4].source).toBe('claude')
     })
 
     it('deduplicates if SDK reports intercepted commands', () => {
@@ -34,7 +34,7 @@ describe('buildSlashCommandList', () => {
         expect(result.filter(c => c.name === 'compact')).toHaveLength(1)
         expect(result.filter(c => c.name === 'compact')[0].source).toBe('builtin')
         expect(result[2].name).toBe('skills')
-        expect(result[2].source).toBe('sdk')
+        expect(result[2].source).toBe('claude')
     })
 
     it('returns only intercepted for non-Claude agents', () => {
@@ -58,61 +58,56 @@ describe('buildSlashCommandList', () => {
         expect(compactCmd?.description).toContain('isolated')
     })
 
-    it('assigns generic description to SDK commands', () => {
+    it('assigns generic description to Claude Code commands', () => {
         const result = buildSlashCommandList('claude', ['skills'])
         const skillsCmd = result.find(c => c.name === 'skills')
 
-        expect(skillsCmd?.description).toBe('Claude SDK command')
+        expect(skillsCmd?.description).toBe('Claude Code command')
     })
 
-    it('merges user commands with intercepted and SDK commands', () => {
+    it('ignores user commands for Claude (init message already includes them)', () => {
         const userCommands: SlashCommand[] = [
             { name: 'mycommand', description: 'My custom command', source: 'user' },
             { name: 'another', description: 'Another command', source: 'user' }
         ]
         const result = buildSlashCommandList('claude', ['skills'], userCommands)
 
-        expect(result).toHaveLength(5)
+        // user commands are ignored - the Claude Code init message already covers everything
+        expect(result).toHaveLength(3)
         expect(result[0].name).toBe('clear')
         expect(result[0].source).toBe('builtin')
         expect(result[1].name).toBe('compact')
         expect(result[1].source).toBe('builtin')
         expect(result[2].name).toBe('skills')
-        expect(result[2].source).toBe('sdk')
-        expect(result[3].name).toBe('mycommand')
-        expect(result[3].source).toBe('user')
-        expect(result[4].name).toBe('another')
-        expect(result[4].source).toBe('user')
+        expect(result[2].source).toBe('claude')
     })
 
-    it('deduplicates user commands that conflict with intercepted', () => {
+    it('ignores user commands that conflict with intercepted (Claude)', () => {
         const userCommands: SlashCommand[] = [
             { name: 'clear', description: 'User clear', source: 'user' },
             { name: 'mycommand', description: 'My command', source: 'user' }
         ]
         const result = buildSlashCommandList('claude', undefined, userCommands)
 
-        expect(result).toHaveLength(3)
+        // user commands ignored for Claude regardless
+        expect(result).toHaveLength(2)
         const clearCmd = result.find(c => c.name === 'clear')
         expect(clearCmd?.source).toBe('builtin')
         expect(clearCmd?.description).toContain('nuclear option')
-        expect(result[2].name).toBe('mycommand')
-        expect(result[2].source).toBe('user')
     })
 
-    it('deduplicates user commands that conflict with SDK', () => {
+    it('Claude Code command wins over same-named user command', () => {
         const userCommands: SlashCommand[] = [
             { name: 'skills', description: 'User skills', source: 'user' },
             { name: 'mycommand', description: 'My command', source: 'user' }
         ]
         const result = buildSlashCommandList('claude', ['skills'], userCommands)
 
-        expect(result).toHaveLength(4)
+        // user commands ignored; skills comes from Claude Code init message
+        expect(result).toHaveLength(3)
         const skillsCmd = result.find(c => c.name === 'skills')
-        expect(skillsCmd?.source).toBe('sdk')
-        expect(skillsCmd?.description).toBe('Claude SDK command')
-        expect(result[3].name).toBe('mycommand')
-        expect(result[3].source).toBe('user')
+        expect(skillsCmd?.source).toBe('claude')
+        expect(skillsCmd?.description).toBe('Claude Code command')
     })
 
     it('handles empty user commands array', () => {
@@ -121,22 +116,7 @@ describe('buildSlashCommandList', () => {
         expect(result.map(c => c.name)).toEqual(['clear', 'compact', 'skills'])
     })
 
-    it('preserves user command content field', () => {
-        const userCommands: SlashCommand[] = [
-            {
-                name: 'mycommand',
-                description: 'My custom command',
-                source: 'user',
-                content: 'This is the command content'
-            }
-        ]
-        const result = buildSlashCommandList('claude', undefined, userCommands)
-
-        const myCmd = result.find(c => c.name === 'mycommand')
-        expect(myCmd?.content).toBe('This is the command content')
-    })
-
-    it('handles complex scenario with all three sources', () => {
+    it('handles complex scenario: intercepted + Claude Code commands, user commands ignored', () => {
         const userCommands: SlashCommand[] = [
             { name: 'clear', description: 'User clear (should be ignored)', source: 'user' },
             { name: 'skills', description: 'User skills (should be ignored)', source: 'user' },
@@ -145,23 +125,17 @@ describe('buildSlashCommandList', () => {
         ]
         const result = buildSlashCommandList('claude', ['skills', 'help', 'context'], userCommands)
 
-        expect(result).toHaveLength(7)
-        // Intercepted first
+        // user commands are all ignored for Claude
+        expect(result).toHaveLength(5)
         expect(result[0].name).toBe('clear')
         expect(result[0].source).toBe('builtin')
         expect(result[1].name).toBe('compact')
         expect(result[1].source).toBe('builtin')
-        // SDK second
         expect(result[2].name).toBe('skills')
-        expect(result[2].source).toBe('sdk')
+        expect(result[2].source).toBe('claude')
         expect(result[3].name).toBe('help')
-        expect(result[3].source).toBe('sdk')
+        expect(result[3].source).toBe('claude')
         expect(result[4].name).toBe('context')
-        expect(result[4].source).toBe('sdk')
-        // User last
-        expect(result[5].name).toBe('custom1')
-        expect(result[5].source).toBe('user')
-        expect(result[6].name).toBe('custom2')
-        expect(result[6].source).toBe('user')
+        expect(result[4].source).toBe('claude')
     })
 })

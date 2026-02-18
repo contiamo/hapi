@@ -22,7 +22,7 @@ export type WorktreeMetadata = z.infer<typeof WorktreeMetadataSchema>
 export const SlashCommandSchema = z.object({
     name: z.string(),
     description: z.string().optional(),
-    source: z.enum(['builtin', 'user', 'sdk']),
+    source: z.enum(['builtin', 'user', 'claude']),
     content: z.string().optional()
 })
 
@@ -52,7 +52,7 @@ export const MetadataSchema = z.object({
     slashCommands: z.preprocess(
         (val) => {
             if (!Array.isArray(val)) return val
-            return val.map(item => typeof item === 'string' ? { name: item, source: 'sdk' } : item)
+            return val.map(item => typeof item === 'string' ? { name: item, source: 'claude' } : item)
         },
         z.array(SlashCommandSchema)
     ).optional(),
