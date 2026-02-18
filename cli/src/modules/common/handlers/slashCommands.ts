@@ -16,21 +16,15 @@ export function registerSlashCommandHandlers(
     getApiSession: () => ApiSessionClient | null
 ): void {
     rpcHandlerManager.registerHandler<ListSlashCommandsRequest, ListSlashCommandsResponse>('listSlashCommands', async (data) => {
-        logger.debug('[RPC] ===== listSlashCommands called =====')
-        logger.debug('[RPC] Request for agent:', data.agent)
+        logger.debug('List slash commands request for agent:', data.agent)
 
         try {
             const apiSession = getApiSession();
             const metadata = apiSession?.getMetadata();
 
-            logger.debug('[RPC] apiSession exists:', !!apiSession);
-            logger.debug('[RPC] metadata exists:', !!metadata);
-            logger.debug('[RPC] metadata.slashCommands exists:', !!metadata?.slashCommands);
-            logger.debug('[RPC] metadata.slashCommands count:', metadata?.slashCommands?.length || 'none');
-
             // For Claude: Check if metadata extraction is still in progress
             if (data.agent === 'claude' && apiSession && !metadata?.slashCommands) {
-                logger.debug('[RPC] Metadata extraction in progress, returning loading state')
+                logger.debug('Metadata extraction in progress, returning loading state')
                 return {
                     success: true,
                     loading: true,
@@ -40,8 +34,7 @@ export function registerSlashCommandHandlers(
 
             // If API session has complete metadata with slashCommands, use it (cached)
             if (metadata?.slashCommands) {
-                logger.debug('[RPC] Returning complete slash commands from session metadata, count:', metadata.slashCommands.length)
-                logger.debug('[RPC] Commands:', metadata.slashCommands.map(c => c.name).join(', '))
+                logger.debug('Returning slash commands from session metadata, count:', metadata.slashCommands.length)
                 return {
                     success: true,
                     loading: false,
