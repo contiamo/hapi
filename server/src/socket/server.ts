@@ -67,6 +67,15 @@ export function createSocketServer(deps: SocketServerDeps): {
             if (!origin || allowAllOrigins || corsOrigins.includes(origin)) {
                 return
             }
+            // Allow same-origin requests: Origin host matches the Host header,
+            // which handles reverse proxies (e.g. Tailscale) without requiring
+            // explicit publicUrl/corsOrigins configuration.
+            const host = req.headers.get('host')
+            if (host) {
+                try {
+                    if (new URL(origin).host === host) return
+                } catch {}
+            }
             throw 'Origin not allowed'
         }
     })
