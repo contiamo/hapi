@@ -78,8 +78,15 @@ export function buildSlashCommandList(
     const interceptedNames = new Set(intercepted.map(c => c.name));
 
     // Convert SDK command names to SlashCommand objects (filter duplicates)
+    // The SDK may report the same command twice when it appears at multiple scopes
+    // (e.g. a skill in both ~/.claude/skills/ and .claude/skills/), so deduplicate here.
+    const seenSdkNames = new Set<string>();
     const sdkSlashCommands: SlashCommand[] = (sdkCommands ?? [])
-        .filter(name => !interceptedNames.has(name))
+        .filter(name => {
+            if (interceptedNames.has(name) || seenSdkNames.has(name)) return false;
+            seenSdkNames.add(name);
+            return true;
+        })
         .map(name => ({
             name,
             description: 'Claude SDK command',
