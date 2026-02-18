@@ -49,7 +49,13 @@ export const MetadataSchema = z.object({
     codexSessionId: z.string().optional(),
     geminiSessionId: z.string().optional(),
     tools: z.array(z.string()).optional(),
-    slashCommands: z.array(SlashCommandSchema).optional(),
+    slashCommands: z.preprocess(
+        (val) => {
+            if (!Array.isArray(val)) return val
+            return val.map(item => typeof item === 'string' ? { name: item, source: 'sdk' } : item)
+        },
+        z.array(SlashCommandSchema)
+    ).optional(),
     homeDir: z.string().optional(),
     happyHomeDir: z.string().optional(),
     happyLibDir: z.string().optional(),

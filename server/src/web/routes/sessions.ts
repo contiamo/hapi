@@ -514,11 +514,13 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         try {
             const result = await engine.listSlashCommands(sessionResult.sessionId, agent)
             return c.json(result)
-        } catch (error) {
-            return c.json({
-                success: false,
-                error: error instanceof Error ? error.message : 'Failed to list slash commands'
-            })
+        } catch {
+            // RPC failed (session not connected) - fall back to stored metadata
+            const storedCommands = sessionResult.session.metadata?.slashCommands
+            if (storedCommands && storedCommands.length > 0) {
+                return c.json({ success: true, loading: false, commands: storedCommands })
+            }
+            return c.json({ success: true, loading: true, commands: [] })
         }
     })
 

@@ -34,6 +34,9 @@ export function useSessionActions(
         if (!sessionId) return
         await queryClient.invalidateQueries({ queryKey: queryKeys.session(sessionId) })
         await queryClient.invalidateQueries({ queryKey: queryKeys.sessions })
+        // Invalidate Infinity-stale queries that may change when a session restarts
+        await queryClient.invalidateQueries({ queryKey: queryKeys.slashCommands(sessionId) })
+        await queryClient.invalidateQueries({ queryKey: queryKeys.skills(sessionId) })
     }
 
     const abortMutation = useMutation({

@@ -71,6 +71,8 @@ export function useSlashCommands(
         staleTime: Infinity,
         gcTime: 30 * 60 * 1000,
         retry: false, // Don't retry RPC failures
+        // Poll while the CLI reports loading:true (SDK metadata extraction in progress)
+        refetchInterval: (query) => query.state.data?.loading === true ? 2000 : false,
     })
 
     // Use API response as source of truth (includes SDK + user commands for Claude)
