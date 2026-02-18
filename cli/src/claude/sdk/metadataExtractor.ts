@@ -60,7 +60,8 @@ export async function extractSDKMetadata(): Promise<SDKMetadata> {
             logger.debug('[metadataExtractor] SDK query aborted after capturing metadata')
             return {}
         }
-        logger.debug('[metadataExtractor] Error extracting SDK metadata:', error)
+        const errorMsg = error instanceof Error ? `${error.name}: ${error.message}` : JSON.stringify(error)
+        logger.warn('[metadataExtractor] Error extracting SDK metadata:', errorMsg)
         return {}
     }
 }

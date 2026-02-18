@@ -339,7 +339,9 @@ export function query(config: {
     cleanupMcpConfig = appendMcpConfigArg(spawnArgs, mcpServers)
 
     // Spawn Claude Code process
-    const spawnEnv = withBunRuntimeEnv(process.env, { allowBunBeBun: false })
+    // Unset CLAUDECODE to allow spawning claude inside an existing claude session
+    const { CLAUDECODE: _claudeCode, ...envWithoutClaudeCode } = process.env
+    const spawnEnv = withBunRuntimeEnv(envWithoutClaudeCode, { allowBunBeBun: false })
     logDebug(`Spawning Claude Code process: ${spawnCommand} ${spawnArgs.join(' ')}`)
 
     const child = spawn(spawnCommand, spawnArgs, {
