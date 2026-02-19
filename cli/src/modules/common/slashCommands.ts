@@ -75,13 +75,18 @@ export function buildSlashCommandList(
 
     const interceptedNames = new Set(intercepted.map(c => c.name));
 
+    // These Claude Code built-in commands only produce output in the terminal UI (TUI).
+    // When sent via stream-json SDK mode they execute silently with an empty result,
+    // so they are useless in HAPI's remote mode.
+    const TUI_ONLY_COMMANDS = new Set(['context', 'cost', 'init']);
+
     if (agent === 'claude') {
         // For Claude, the init message already includes everything (built-ins, user skills,
         // project skills, plugin skills). Deduplicate across scopes and strip intercepted names.
         const seen = new Set<string>();
         const claudeCommands: SlashCommand[] = (claudeCodeCommands ?? [])
             .filter(name => {
-                if (interceptedNames.has(name) || seen.has(name)) return false;
+                if (interceptedNames.has(name) || TUI_ONLY_COMMANDS.has(name) || seen.has(name)) return false;
                 seen.add(name);
                 return true;
             })

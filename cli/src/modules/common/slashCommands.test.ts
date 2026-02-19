@@ -12,7 +12,7 @@ describe('buildSlashCommandList', () => {
     })
 
     it('merges SDK commands with intercepted commands', () => {
-        const result = buildSlashCommandList('claude', ['skills', 'help', 'context'])
+        const result = buildSlashCommandList('claude', ['skills', 'help', 'review'])
         expect(result).toHaveLength(5)
         expect(result[0].name).toBe('clear')
         expect(result[0].source).toBe('builtin')
@@ -22,8 +22,18 @@ describe('buildSlashCommandList', () => {
         expect(result[2].source).toBe('claude')
         expect(result[3].name).toBe('help')
         expect(result[3].source).toBe('claude')
-        expect(result[4].name).toBe('context')
+        expect(result[4].name).toBe('review')
         expect(result[4].source).toBe('claude')
+    })
+
+    it('filters out TUI-only commands that produce no output in remote mode', () => {
+        const result = buildSlashCommandList('claude', ['review', 'context', 'cost', 'init', 'debug'])
+        const names = result.map(c => c.name)
+        expect(names).not.toContain('context')
+        expect(names).not.toContain('cost')
+        expect(names).not.toContain('init')
+        expect(names).toContain('review')
+        expect(names).toContain('debug')
     })
 
     it('deduplicates if SDK reports intercepted commands', () => {
@@ -125,8 +135,8 @@ describe('buildSlashCommandList', () => {
         ]
         const result = buildSlashCommandList('claude', ['skills', 'help', 'context'], userCommands)
 
-        // user commands are all ignored for Claude
-        expect(result).toHaveLength(5)
+        // user commands are all ignored for Claude; context is TUI-only so filtered out
+        expect(result).toHaveLength(4)
         expect(result[0].name).toBe('clear')
         expect(result[0].source).toBe('builtin')
         expect(result[1].name).toBe('compact')
@@ -135,7 +145,6 @@ describe('buildSlashCommandList', () => {
         expect(result[2].source).toBe('claude')
         expect(result[3].name).toBe('help')
         expect(result[3].source).toBe('claude')
-        expect(result[4].name).toBe('context')
-        expect(result[4].source).toBe('claude')
+        expect(result.map(c => c.name)).not.toContain('context')
     })
 })
