@@ -60,12 +60,80 @@ def get_merge_base() -> str:
     return run_command(["git", "merge-base", "main", "upstream/main"])
 
 
-def get_upstream_commits(merge_base: str) -> list[str]:
-    """Get list of commit SHAs from upstream that we don't have."""
+def resolve_sha(sha: str) -> str | None:
+    """Resolve a short or full SHA to a full 40-char SHA. Returns None if unresolvable."""
+    try:
+        return run_command(["git", "rev-parse", "--verify", sha])
+    except subprocess.CalledProcessError:
+        console.print(f"[yellow]Warning: could not resolve SHA '{sha}', skipping[/yellow]")
+        return None
+
+
+def parse_backport_footer(value: str) -> list[str]:
+    """Parse the value of a Backport: footer line into a list of entries.
+
+    Each entry is either a single SHA or a range in the form 'old_sha...new_sha'.
+    Example input: ' sha1...sha2, sha3, sha4...sha5 '
+    """
+    return [entry.strip() for entry in value.split(",") if entry.strip()]
+
+
+def get_handled_upstream_shas(merge_base: str) -> set[str]:
+    """Scan our commits for Backport: footers and return the set of upstream SHAs they cover."""
+    handled: set[str] = set()
+
+    # Get full commit messages for all our commits since the fork
+    log_output = run_command(
+        ["git", "log", "--format=%B%x00", f"{merge_base}..main"]
+    )
+
+    for commit_body in log_output.split("\x00"):
+        for line in commit_body.splitlines():
+            if not line.startswith("Backport:"):
+                continue
+            value = line[len("Backport:"):].strip()
+            for entry in parse_backport_footer(value):
+                if "..." in entry:
+                    # Range: old_sha...new_sha — expand to all commits inclusive
+                    parts = entry.split("...", 1)
+                    old_sha, new_sha = parts[0].strip(), parts[1].strip()
+                    old_full = resolve_sha(old_sha)
+                    new_full = resolve_sha(new_sha)
+                    if old_full is None or new_full is None:
+                        continue
+                    # git log old^..new gives all commits inclusive of both ends
+                    range_output = run_command(
+                        ["git", "log", "--format=%H", f"{old_full}^..{new_full}"],
+                        check=False,
+                    )
+                    for sha in range_output.splitlines():
+                        if sha:
+                            handled.add(sha)
+                else:
+                    # Single SHA
+                    full = resolve_sha(entry)
+                    if full:
+                        handled.add(full)
+
+    return handled
+
+
+def get_upstream_commits(merge_base: str, handled: set[str]) -> list[str]:
+    """Get list of upstream commit SHAs not yet handled by our fork."""
     commits = run_command(
         ["git", "log", "--oneline", "--no-merges", f"{merge_base}..upstream/main"]
     )
-    return [line.split()[0] for line in commits.split("\n") if line]
+    all_shas = [line.split()[0] for line in commits.split("\n") if line]
+
+    # Filter out already-handled commits (resolve short SHAs to full for comparison)
+    unhandled = []
+    for short_sha in all_shas:
+        full = resolve_sha(short_sha)
+        if full and full in handled:
+            continue
+        unhandled.append(short_sha)
+
+    return unhandled
 
 
 def get_commit_info(sha: str) -> CommitInfo:
@@ -304,10 +372,34 @@ def main() -> None:
     merge_base = get_merge_base()
     console.print(f"[green]Merge base: {merge_base}[/green]\n")
 
-    # Get upstream commits
+    # Scan our commits for already-handled upstream SHAs
+    console.print("[cyan]Scanning for already-handled upstream commits...[/cyan]")
+    handled = get_handled_upstream_shas(merge_base)
+    if handled:
+        console.print(f"[green]Found {len(handled)} already-handled upstream commits[/green]\n")
+    else:
+        console.print("[dim]No Backport: footers found yet[/dim]\n")
+
+    # Get upstream commits, filtering out handled ones
     console.print("[cyan]Collecting upstream commits...[/cyan]")
-    upstream_shas = get_upstream_commits(merge_base)
-    console.print(f"[green]Found {len(upstream_shas)} upstream commits[/green]\n")
+    all_upstream_shas = run_command(
+        ["git", "log", "--oneline", "--no-merges", f"{merge_base}..upstream/main"]
+    )
+    total_upstream = len([l for l in all_upstream_shas.split("\n") if l])
+    upstream_shas = get_upstream_commits(merge_base, handled)
+    filtered_count = total_upstream - len(upstream_shas)
+
+    if filtered_count:
+        console.print(
+            f"[green]Found {total_upstream} upstream commits "
+            f"({filtered_count} already handled, {len(upstream_shas)} remaining)[/green]\n"
+        )
+    else:
+        console.print(f"[green]Found {len(upstream_shas)} upstream commits[/green]\n")
+
+    if not upstream_shas:
+        console.print("[bold green]✓ All upstream commits have been handled. Nothing to report.[/bold green]")
+        return
 
     # Get detailed info for each upstream commit
     upstream_commits = []

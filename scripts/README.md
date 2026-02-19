@@ -11,6 +11,32 @@ Automated tool that uses Claude AI to analyze upstream commits and generate comp
 - **Prioritization**: Organizes changes by value and effort
 - **Actionable plans**: Provides step-by-step implementation guidance
 
+## Backport Tracking
+
+When a backport commit is created on our fork, add a `Backport:` footer to the commit message
+listing the upstream SHA(s) it covers. The report generator reads these footers and excludes
+those upstream commits from future reports.
+
+### Footer format
+
+```
+feat: add font size setting
+
+Port of upstream font size feature, adapted for our settings layout.
+
+Backport: efbe4f8...308249a,61dd69d
+```
+
+- Comma-separated list of entries
+- Each entry is either a **single SHA** or an **inclusive range** `old_sha...new_sha`
+  (`old_sha` is the older commit on `upstream/main`, `new_sha` is the newer one)
+- Short (7-char) or full (40-char) SHAs are both accepted
+- Use a range when one backport commit covers multiple upstream commits — for example a feature
+  and its follow-up fixes that were all addressed together in a single reimplementation
+
+A commit that is intentionally **not** backported simply never gets a footer — it will reappear
+in future reports, which is the right behaviour (reviewers decide each week what to do with it).
+
 ## Prerequisites
 
 1. **Python 3.11+** with `uv` installed
