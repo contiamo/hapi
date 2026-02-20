@@ -10,7 +10,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useTranslation, type TranslationKey } from '@/lib/use-translation'
 import { useSimpleToast } from '@/lib/simple-toast'
 
-type ViewMode = 'active' | 'by-project'
+export type ViewMode = 'active' | 'by-project'
 
 type SessionGroup = {
     directory: string
@@ -446,15 +446,18 @@ export function SessionList(props: {
     isLoading: boolean
     renderHeader?: boolean
     api: ApiClient | null
+    viewMode?: ViewMode
 }) {
     const { t } = useTranslation()
     const { renderHeader = true, api } = props
     const toast = useSimpleToast()
 
-    const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const [internalViewMode, setInternalViewMode] = useState<ViewMode>(() => {
         const saved = localStorage.getItem('hapi-session-view')
         return saved === 'by-project' ? 'by-project' : 'active'
     })
+    const viewMode = props.viewMode ?? internalViewMode
+
     const [collapseOverrides, setCollapseOverrides] = useState<Map<string, boolean>>(
         () => new Map()
     )
@@ -472,7 +475,7 @@ export function SessionList(props: {
     )
 
     const handleSetViewMode = (mode: ViewMode) => {
-        setViewMode(mode)
+        setInternalViewMode(mode)
         setCollapseOverrides(new Map())
         localStorage.setItem('hapi-session-view', mode)
     }
