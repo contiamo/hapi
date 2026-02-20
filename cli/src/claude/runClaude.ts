@@ -264,10 +264,23 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
                 allowedTools: messageAllowedTools,
                 disallowedTools: messageDisallowedTools
             };
-            // Use raw text only, ignore attachments for special commands
-            const commandText = specialCommand.originalMessage || message.content.text;
-            messageQueue.pushIsolateAndClear(commandText, enhancedMode);
+            messageQueue.pushIsolateAndClear(message.content.text, enhancedMode);
             logger.debugLargeJson('[start] /clear command pushed to queue:', message);
+            return;
+        }
+
+        if (specialCommand.type === 'rollback' || specialCommand.type === 'rollback_invalid') {
+            logger.debug(`[start] Detected /${specialCommand.type} command`);
+            const enhancedMode: EnhancedMode = {
+                permissionMode: messagePermissionMode ?? 'default',
+                model: messageModel,
+                fallbackModel: messageFallbackModel,
+                customSystemPrompt: messageCustomSystemPrompt,
+                appendSystemPrompt: messageAppendSystemPrompt,
+                allowedTools: messageAllowedTools,
+                disallowedTools: messageDisallowedTools
+            };
+            messageQueue.pushIsolateAndClear(message.content.text, enhancedMode);
             return;
         }
 
@@ -281,6 +294,10 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
             allowedTools: messageAllowedTools,
             disallowedTools: messageDisallowedTools
         };
+        if (!formattedText.trim()) {
+            logger.warn('[loop] Dropping empty message (no text and no attachments)');
+            return;
+        }
         messageQueue.push(formattedText, enhancedMode);
         logger.debugLargeJson('User message pushed to queue:', message)
     });
