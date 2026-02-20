@@ -59,6 +59,10 @@ export default {
   'session.time.hoursAgo': '{n}h ago',
   'session.time.daysAgo': '{n}d ago',
 
+  // Session inactive states
+  'session.inactive.message': 'Session is inactive. Controls are disabled.',
+  'session.inactive.forkActivating': 'Activating forked session…',
+
   // Session header
   'session.title': 'Files',
   'session.more': 'More actions',

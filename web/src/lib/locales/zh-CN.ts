@@ -59,6 +59,10 @@ export default {
   'session.time.hoursAgo': '{n} 小时前',
   'session.time.daysAgo': '{n} 天前',
 
+  // Session inactive states
+  'session.inactive.message': '会话未激活，控件已禁用。',
+  'session.inactive.forkActivating': '正在激活分支会话…',
+
   // Session header
   'session.title': '文件',
   'session.more': '更多操作',
