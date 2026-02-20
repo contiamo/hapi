@@ -1,13 +1,14 @@
 name: Tests
 
+# on:
+#   pull_request:
+#     branches-ignore:
+#       - "release-please--branches--**"
 on:
-  push:
-    branches-ignore:
-      - 'release-please--branches--**'
   pull_request:
-    branches-ignore:
-      - 'release-please--branches--**'
-
+    branches:
+      - "main"
+      - "!release-please--branches--**"
 jobs:
   test:
     runs-on: ubuntu-latest
