@@ -285,9 +285,19 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             // Create new session with forked metadata
             const newSessionId = await engine.forkSession(sessionResult.sessionId, enableYolo)
 
+            // Kick off resume in the background - don't block the response.
+            // If the machine is offline the resume will fail silently; the user
+            // can still activate the session manually from the inactive-session UI.
+            engine.resumeSession(newSessionId).catch((err) => {
+                console.warn('[POST /sessions/:id/fork] Background resume failed:', {
+                    newSessionId,
+                    error: err instanceof Error ? err.message : String(err)
+                })
+            })
+
             return c.json({
                 id: newSessionId,
-                message: 'Session forked. Resume to activate.'
+                message: 'Session forked and activating.'
             })
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to fork session'
