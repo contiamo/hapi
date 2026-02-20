@@ -10,6 +10,7 @@ import { MessageStatusIndicator } from '@/components/AssistantChat/messages/Mess
 import { ToolCard } from '@/components/ToolCard/ToolCard'
 import { useHappyChatContext } from '@/components/AssistantChat/context'
 import { CliOutputBlock } from '@/components/CliOutputBlock'
+import { UnknownMessageBlock } from '@/components/UnknownMessageBlock'
 
 function isToolCallBlock(value: unknown): value is ToolCallBlock {
     if (!isObject(value)) return false
@@ -147,6 +148,14 @@ function HappyNestedBlockList(props: {
                                     </div>
                                 )
                             ) : null}
+                        </div>
+                    )
+                }
+
+                if (block.kind === 'unknown-message') {
+                    return (
+                        <div key={`unknown:${block.id}`} className="py-1">
+                            <UnknownMessageBlock raw={block.raw} />
                         </div>
                     )
                 }
