@@ -1,0 +1,44 @@
+# Contiamo Release Please Configuration
+# https://github.com/contiamo/contiamo-release-please
+
+release-rules:
+  major:
+    - breaking
+  minor:
+    - feat
+  patch:
+    - fix
+    - perf
+    - chore
+    - docs
+    - refactor
+    - style
+    - test
+    - ci
+
+version-prefix: "v"
+changelog-path: "CHANGELOG.md"
+source-branch: "main"
+
+git:
+  user-name: "Contiamo Release Bot"
+  user-email: "contiamo-release@ctmo.io"
+
+changelog-sections:
+  - type: feat
+    section: Features
+  - type: fix
+    section: Bug Fixes
+  - type: chore
+    section: Miscellaneous Changes
+  - type: ci
+    section: Miscellaneous Changes
+  - type: docs
+    section: Documentation
+  - type: refactor
+    section: Code Refactoring
+
+extra-files:
+  - type: json
+    path: cli/package.json
+    json-path: $.version
