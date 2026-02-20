@@ -17,6 +17,7 @@ export type AgentEvent =
     | { type: 'api-error'; retryAttempt: number; maxRetries: number; error: unknown }
     | { type: 'turn-duration'; durationMs: number }
     | { type: 'microcompact'; trigger: string; preTokens: number; tokensSaved: number }
+    | { type: 'rate-limit'; status: string; rateLimitType: string; resetAt: number | null; overageStatus: string | null }
     | ({ type: string } & Record<string, unknown>)
 
 export type ToolResultPermission = {
@@ -64,6 +65,7 @@ export type NormalizedAgentContent =
     | ToolResult
     | { type: 'summary'; summary: string }
     | { type: 'sidechain'; uuid: string; prompt: string }
+    | { type: 'unknown-message'; raw: unknown }
 
 export type NormalizedMessage = ({
     role: 'user'
@@ -169,4 +171,13 @@ export type ToolCallBlock = {
     meta?: unknown
 }
 
-export type ChatBlock = UserTextBlock | AgentTextBlock | AgentReasoningBlock | CliOutputBlock | ToolCallBlock | AgentEventBlock
+export type UnknownMessageBlock = {
+    kind: 'unknown-message'
+    id: string
+    localId: string | null
+    createdAt: number
+    raw: unknown
+    meta?: unknown
+}
+
+export type ChatBlock = UserTextBlock | AgentTextBlock | AgentReasoningBlock | CliOutputBlock | ToolCallBlock | AgentEventBlock | UnknownMessageBlock

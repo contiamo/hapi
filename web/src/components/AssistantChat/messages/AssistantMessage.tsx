@@ -3,6 +3,7 @@ import { MarkdownText } from '@/components/assistant-ui/markdown-text'
 import { Reasoning, ReasoningGroup } from '@/components/assistant-ui/reasoning'
 import { HappyToolMessage } from '@/components/AssistantChat/messages/ToolMessage'
 import { CliOutputBlock } from '@/components/CliOutputBlock'
+import { UnknownMessageBlock } from '@/components/UnknownMessageBlock'
 import type { HappyChatMessageMetadata } from '@/lib/assistant-runtime'
 
 const TOOL_COMPONENTS = {
@@ -35,10 +36,28 @@ export function HappyAssistantMessage() {
         ? 'py-1 min-w-0 max-w-full overflow-x-hidden'
         : 'px-1 min-w-0 max-w-full overflow-x-hidden'
 
+    const isUnknownMessage = useAssistantState(({ message }) => {
+        const custom = message.metadata.custom as Partial<HappyChatMessageMetadata> | undefined
+        return custom?.kind === 'unknown-message'
+    })
+    const unknownMessageRaw = useAssistantState(({ message }) => {
+        const custom = message.metadata.custom as Partial<HappyChatMessageMetadata> | undefined
+        if (custom?.kind !== 'unknown-message') return undefined
+        return custom.unknownMessageRaw
+    })
+
     if (isCliOutput) {
         return (
             <MessagePrimitive.Root className="px-1 min-w-0 max-w-full overflow-x-hidden">
                 <CliOutputBlock text={cliText} />
+            </MessagePrimitive.Root>
+        )
+    }
+
+    if (isUnknownMessage) {
+        return (
+            <MessagePrimitive.Root className="px-1 min-w-0 max-w-full overflow-x-hidden">
+                <UnknownMessageBlock raw={unknownMessageRaw} />
             </MessagePrimitive.Root>
         )
     }

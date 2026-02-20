@@ -3,12 +3,12 @@ import type { AppendMessage, AttachmentAdapter, ThreadMessageLike } from '@assis
 import { useExternalMessageConverter, useExternalStoreRuntime } from '@assistant-ui/react'
 import { safeStringify } from '@hapi/protocol'
 import { renderEventLabel } from '@/chat/presentation'
-import type { ChatBlock, CliOutputBlock } from '@/chat/types'
+import type { ChatBlock, CliOutputBlock, UnknownMessageBlock } from '@/chat/types'
 import type { AgentEvent, ToolCallBlock } from '@/chat/types'
 import type { AttachmentMetadata, MessageStatus as HappyMessageStatus, Session } from '@/types/api'
 
 export type HappyChatMessageMetadata = {
-    kind: 'user' | 'assistant' | 'tool' | 'event' | 'cli-output'
+    kind: 'user' | 'assistant' | 'tool' | 'event' | 'cli-output' | 'unknown-message'
     status?: HappyMessageStatus
     localId?: string | null
     originalText?: string
@@ -16,6 +16,7 @@ export type HappyChatMessageMetadata = {
     event?: AgentEvent
     source?: CliOutputBlock['source']
     attachments?: AttachmentMetadata[]
+    unknownMessageRaw?: unknown
 }
 
 function toThreadMessageLike(block: ChatBlock): ThreadMessageLike {
@@ -86,6 +87,23 @@ function toThreadMessageLike(block: ChatBlock): ThreadMessageLike {
             content: [{ type: 'text', text: block.text }],
             metadata: {
                 custom: { kind: 'cli-output', source: block.source } satisfies HappyChatMessageMetadata
+            }
+        }
+    }
+
+    if (block.kind === 'unknown-message') {
+        const unknownBlock: UnknownMessageBlock = block
+        const messageId = `unknown:${unknownBlock.id}`
+        return {
+            role: 'assistant',
+            id: messageId,
+            createdAt: new Date(unknownBlock.createdAt),
+            content: [{ type: 'text', text: '' }],
+            metadata: {
+                custom: {
+                    kind: 'unknown-message',
+                    unknownMessageRaw: unknownBlock.raw
+                } satisfies HappyChatMessageMetadata
             }
         }
     }

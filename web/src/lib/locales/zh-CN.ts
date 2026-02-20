@@ -39,7 +39,12 @@ export default {
 
   // Sessions page
   'sessions.count': '{n} 个会话，{m} 个项目',
+  'sessions.count.simple': '{n} 个会话',
   'sessions.new': '新建会话',
+  'sessions.view.active': '活跃',
+  'sessions.view.byProject': '按项目',
+  'sessions.group.active': '活跃',
+  'sessions.group.inactive': '非活跃',
 
   // Session list
   'session.item.path': '路径',
@@ -53,6 +58,10 @@ export default {
   'session.time.minutesAgo': '{n} 分钟前',
   'session.time.hoursAgo': '{n} 小时前',
   'session.time.daysAgo': '{n} 天前',
+
+  // Session inactive states
+  'session.inactive.message': '会话未激活，控件已禁用。',
+  'session.inactive.forkActivating': '正在激活分支会话…',
 
   // Session header
   'session.title': '文件',

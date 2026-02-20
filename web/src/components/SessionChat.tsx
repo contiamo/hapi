@@ -18,6 +18,7 @@ import { usePlatform } from '@/hooks/usePlatform'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
 import { useVoiceOptional } from '@/lib/voice-context'
 import { RealtimeVoiceSession, registerSessionStore, registerVoiceHooksStore, voiceHooks } from '@/realtime'
+import { useTranslation } from '@/lib/use-translation'
 
 export function SessionChat(props: {
     api: ApiClient
@@ -41,7 +42,9 @@ export function SessionChat(props: {
 }) {
     const { haptic } = usePlatform()
     const navigate = useNavigate()
+    const { t } = useTranslation()
     const controlsDisabled = !props.session.active
+    const isForkActivating = controlsDisabled && props.session.metadata?.shouldFork === true
     const normalizedCacheRef = useRef<Map<string, { source: DecryptedMessage; normalized: NormalizedMessage | null }>>(new Map())
     const blocksByIdRef = useRef<Map<string, ChatBlock>>(new Map())
     const [forceScrollToken, setForceScrollToken] = useState(0)
@@ -266,9 +269,16 @@ export function SessionChat(props: {
 
             {controlsDisabled ? (
                 <div className="px-3 pt-3">
-                    <div className="mx-auto w-full max-w-content rounded-md bg-[var(--app-subtle-bg)] p-3 text-sm text-[var(--app-hint)]">
-                        Session is inactive. Controls are disabled.
-                    </div>
+                    {isForkActivating ? (
+                        <div className="mx-auto w-full max-w-content rounded-md bg-[var(--app-subtle-bg)] p-3 text-sm text-[var(--app-hint)] flex items-center gap-2">
+                            <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-[var(--app-hint)] border-t-transparent" />
+                            {t('session.inactive.forkActivating')}
+                        </div>
+                    ) : (
+                        <div className="mx-auto w-full max-w-content rounded-md bg-[var(--app-subtle-bg)] p-3 text-sm text-[var(--app-hint)]">
+                            {t('session.inactive.message')}
+                        </div>
+                    )}
                 </div>
             ) : null}
 

@@ -228,6 +228,19 @@ export function reduceTimeline(
                         createdAt: msg.createdAt,
                         text: c.prompt
                     })
+                    continue
+                }
+
+                if (c.type === 'unknown-message') {
+                    blocks.push({
+                        kind: 'unknown-message',
+                        id: `${msg.id}:${idx}`,
+                        localId: msg.localId,
+                        createdAt: msg.createdAt,
+                        raw: c.raw,
+                        meta: msg.meta
+                    })
+                    continue
                 }
             }
         }
