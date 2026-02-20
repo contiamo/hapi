@@ -1,5 +1,7 @@
 # HAPI
 
+This is Contiamo's fork of https://github.com/tiann/hapi.
+
 Run official Claude Code / Codex / Gemini sessions locally and control them remotely through a Web / PWA / Telegram Mini App.
 
 > **Why HAPI?** HAPI is a local-first alternative to Happy. See [Why Not Happy?](docs/guide/why-hapi.md) for the key differences.
