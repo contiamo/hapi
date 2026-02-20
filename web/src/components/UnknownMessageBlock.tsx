@@ -14,7 +14,7 @@ function getMessageType(raw: unknown): string {
 export function UnknownMessageBlock(props: { raw: unknown }) {
     const [copied, setCopied] = useState(false)
     const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-    const json = safeStringify(props.raw, 2)
+    const json = safeStringify(props.raw)
     const messageType = getMessageType(props.raw)
 
     useEffect(() => {
