@@ -10,6 +10,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    name: Build and Publish
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
