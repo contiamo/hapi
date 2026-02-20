@@ -417,8 +417,8 @@ Requires=$server_service
 PartOf=$server_service
 
 [Service]
-Type=forking
-ExecStart=$hapi_binary runner start
+Type=simple
+ExecStart=$hapi_binary runner start-sync
 ExecStop=$hapi_binary runner stop
 Restart=always
 RestartSec=5s
