@@ -17,6 +17,7 @@ import {
     type RemoteLauncherDisplayContext,
     type RemoteLauncherExitReason
 } from "@/modules/common/remote/RemoteLauncherBase";
+import { CORRUPTION_ERRORS } from "./utils/repairSession";
 
 interface PermissionsField {
     date: number;
@@ -118,6 +119,20 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
         let ongoingToolCalls = new Map<string, { parentToolCallId: string | null }>();
 
         function onMessage(message: SDKMessage) {
+            if (message.type === 'result') {
+                const result = message as import('./sdk').SDKResultMessage;
+                if (
+                    result.is_error &&
+                    typeof result.result === 'string' &&
+                    CORRUPTION_ERRORS.some((e) => (result.result as string).includes(e))
+                ) {
+                    logger.warn('[remote]: Corrupted session detected');
+                    session.client.sendSessionEvent({
+                        type: 'message',
+                        message: 'Session error — use /rollback to remove the last turn and retry.',
+                    });
+                }
+            }
             formatClaudeMessageForInk(message, messageBuffer);
             permissionHandler.onMessage(message);
 

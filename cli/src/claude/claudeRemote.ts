@@ -1,5 +1,5 @@
 import { EnhancedMode, PermissionMode } from "./loop";
-import { query, type QueryOptions as Options, type SDKMessage, type SDKSystemMessage, AbortError, SDKUserMessage } from '@/claude/sdk'
+import { query, type QueryOptions as Options, type SDKMessage, type SDKSystemMessage, AbortError, SDKUserMessage, SDKResultMessage } from '@/claude/sdk'
 import { claudeCheckSession } from "./utils/claudeCheckSession";
 import { join } from 'node:path';
 import { parseSpecialCommand } from "@/parsers/specialCommands";
@@ -10,6 +10,7 @@ import { awaitFileExist } from "@/modules/watcher/awaitFileExist";
 import { systemPrompt } from "./utils/systemPrompt";
 import { PermissionResult } from "./sdk/types";
 import { getHapiBlobsDir } from "@/constants/uploadPaths";
+import { rollbackSession, CORRUPTION_ERRORS } from "./utils/repairSession";
 
 export async function claudeRemote(opts: {
 
@@ -87,6 +88,9 @@ export async function claudeRemote(opts: {
     const specialCommand = parseSpecialCommand(initial.message);
 
     // Handle /clear command
+    // Note: onReady() is intentionally NOT called here. /clear triggers onSessionReset()
+    // which causes the launcher loop to start a fresh session. The ready event will come
+    // from the new session once it processes its first real message.
     if (specialCommand.type === 'clear') {
         if (opts.onCompletionEvent) {
             opts.onCompletionEvent('Context was reset');
@@ -94,6 +98,25 @@ export async function claudeRemote(opts: {
         if (opts.onSessionReset) {
             opts.onSessionReset();
         }
+        return;
+    }
+
+    // Handle /rollback [N] command — invalid args return an error, valid args truncate the session
+    if (specialCommand.type === 'rollback_invalid') {
+        opts.onCompletionEvent?.(`/rollback: invalid argument "${specialCommand.raw}" — usage: /rollback [N] where N is a positive integer`);
+        opts.onReady();
+        return;
+    }
+    if (specialCommand.type === 'rollback') {
+        const result = rollbackSession(opts.path, opts.sessionId, specialCommand.turns);
+        if (result.truncated) {
+            const preview = result.removedText ? ` Removed: "${result.removedText.slice(0, 120)}"` : '';
+            const label = result.turnsRemoved === 1 ? 'turn' : 'turns';
+            opts.onCompletionEvent?.(`Rolled back ${result.turnsRemoved} ${label}.${preview}`);
+        } else {
+            opts.onCompletionEvent?.('Nothing to roll back.');
+        }
+        opts.onReady();
         return;
     }
 
@@ -199,6 +222,20 @@ export async function claudeRemote(opts: {
 
                 // Send ready event
                 opts.onReady();
+
+                // If the session is corrupted, exit cleanly without calling nextMessage().
+                // Feeding another message into the same broken session would trigger
+                // the same 400 error again immediately.
+                const resultMsg = message as SDKResultMessage;
+                if (
+                    resultMsg.is_error &&
+                    typeof resultMsg.result === 'string' &&
+                    CORRUPTION_ERRORS.some((e) => (resultMsg.result as string).includes(e))
+                ) {
+                    logger.warn('[claudeRemote] Corrupted session detected, exiting early');
+                    messages.end();
+                    return;
+                }
 
                 // Push next message
                 const next = await opts.nextMessage();

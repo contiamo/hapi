@@ -2,80 +2,68 @@
  * Parsers for special commands that require dedicated remote session handling
  */
 
-export interface CompactCommandResult {
-    isCompact: boolean;
-    originalMessage: string;
-}
-
-export interface ClearCommandResult {
-    isClear: boolean;
-}
-
-export interface SpecialCommandResult {
-    type: 'compact' | 'clear' | null;
-    originalMessage?: string;
-}
+export type SpecialCommandResult =
+    | { type: 'compact'; originalMessage: string }
+    | { type: 'clear' }
+    | { type: 'rollback'; turns: number }
+    | { type: null }
 
 /**
  * Parse /compact command
  * Matches messages starting with "/compact " or exactly "/compact"
  */
-export function parseCompact(message: string): CompactCommandResult {
+function parseCompact(message: string): SpecialCommandResult {
     const trimmed = message.trim();
-    
-    if (trimmed === '/compact') {
-        return {
-            isCompact: true,
-            originalMessage: trimmed
-        };
+
+    if (trimmed === '/compact' || trimmed.startsWith('/compact ')) {
+        return { type: 'compact', originalMessage: trimmed };
     }
-    
-    if (trimmed.startsWith('/compact ')) {
-        return {
-            isCompact: true,
-            originalMessage: trimmed
-        };
-    }
-    
-    return {
-        isCompact: false,
-        originalMessage: message
-    };
+
+    return { type: null };
 }
 
 /**
  * Parse /clear command
  * Only matches exactly "/clear"
  */
-export function parseClear(message: string): ClearCommandResult {
-    const trimmed = message.trim();
-    
-    return {
-        isClear: trimmed === '/clear'
-    };
+function parseClear(message: string): SpecialCommandResult {
+    return message.trim() === '/clear' ? { type: 'clear' } : { type: null };
 }
 
 /**
- * Unified parser for special commands
- * Returns the type of command and original message if applicable
+ * Parse /rollback [N] command
+ * Matches "/rollback" (N=1) or "/rollback N" where N is a positive integer.
+ * Returns { type: null } for invalid arguments so the caller can send an error.
  */
-export function parseSpecialCommand(message: string): SpecialCommandResult {
-    const compactResult = parseCompact(message);
-    if (compactResult.isCompact) {
-        return {
-            type: 'compact',
-            originalMessage: compactResult.originalMessage
-        };
+export function parseRollback(message: string): SpecialCommandResult | { type: 'rollback_invalid'; raw: string } {
+    const trimmed = message.trim();
+
+    if (trimmed === '/rollback') {
+        return { type: 'rollback', turns: 1 };
     }
-    
-    const clearResult = parseClear(message);
-    if (clearResult.isClear) {
-        return {
-            type: 'clear'
-        };
+
+    if (trimmed.startsWith('/rollback ')) {
+        const arg = trimmed.slice('/rollback '.length).trim();
+        const n = Number(arg);
+        if (Number.isInteger(n) && n > 0) {
+            return { type: 'rollback', turns: n };
+        }
+        return { type: 'rollback_invalid', raw: arg };
     }
-    
-    return {
-        type: null
-    };
+
+    return { type: null };
+}
+
+/**
+ * Unified parser for special commands.
+ * Returns the type of command detected, or { type: null } if none matched.
+ */
+export function parseSpecialCommand(message: string): SpecialCommandResult | { type: 'rollback_invalid'; raw: string } {
+    const compact = parseCompact(message);
+    if (compact.type !== null) return compact;
+
+    const clear = parseClear(message);
+    if (clear.type !== null) return clear;
+
+    return parseRollback(message);
 }

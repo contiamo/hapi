@@ -70,6 +70,11 @@ export function buildSlashCommandList(
             name: 'compact',
             description: 'Compress context while preserving session (isolated from other messages)',
             source: 'builtin'
+        },
+        {
+            name: 'rollback',
+            description: 'Remove the last N conversation turns and resume from there (default: 1)',
+            source: 'builtin'
         }
     ];
 

@@ -8,7 +8,8 @@ import type { SlashCommand } from '@hapi/protocol/types'
 // Minimal intercepted commands shown while metadata loads
 const INTERCEPTED_COMMANDS: SlashCommand[] = [
     { name: 'clear', description: 'Complete context and session reset', source: 'builtin' },
-    { name: 'compact', description: 'Compress context while preserving session', source: 'builtin' }
+    { name: 'compact', description: 'Compress context while preserving session', source: 'builtin' },
+    { name: 'rollback', description: 'Remove the last N conversation turns (default: 1)', source: 'builtin' },
 ];
 
 export function registerSlashCommandHandlers(
