@@ -10,6 +10,8 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useTranslation, type TranslationKey } from '@/lib/use-translation'
 import { useSimpleToast } from '@/lib/simple-toast'
 
+export type ViewMode = 'active' | 'by-project'
+
 type SessionGroup = {
     directory: string
     displayName: string
@@ -60,6 +62,42 @@ function groupSessionsByDirectory(sessions: SessionSummary[]): SessionGroup[] {
             }
             return b.latestUpdatedAt - a.latestUpdatedAt
         })
+}
+
+function groupSessionsByActivity(sessions: SessionSummary[]): SessionGroup[] {
+    const active = sessions.filter(s => s.active)
+    const inactive = sessions.filter(s => !s.active)
+
+    const groups: SessionGroup[] = []
+
+    if (active.length > 0) {
+        const sortedActive = [...active].sort((a, b) => {
+            const rankA = a.pendingRequestsCount > 0 ? 0 : (a.thinking ? 1 : 2)
+            const rankB = b.pendingRequestsCount > 0 ? 0 : (b.thinking ? 1 : 2)
+            if (rankA !== rankB) return rankA - rankB
+            return b.updatedAt - a.updatedAt
+        })
+        groups.push({
+            directory: '__active__',
+            displayName: '__active__',
+            sessions: sortedActive,
+            latestUpdatedAt: active.reduce((max, s) => (s.updatedAt > max ? s.updatedAt : max), -Infinity),
+            hasActiveSession: true,
+        })
+    }
+
+    if (inactive.length > 0) {
+        const sortedInactive = [...inactive].sort((a, b) => b.updatedAt - a.updatedAt)
+        groups.push({
+            directory: '__inactive__',
+            displayName: '__inactive__',
+            sessions: sortedInactive,
+            latestUpdatedAt: inactive.reduce((max, s) => (s.updatedAt > max ? s.updatedAt : max), -Infinity),
+            hasActiveSession: false,
+        })
+    }
+
+    return groups
 }
 
 function PlusIcon(props: { className?: string }) {
@@ -285,7 +323,7 @@ function SessionItem(props: {
             <button
                 type="button"
                 {...longPressHandlers}
-                className={`session-list-item flex w-full flex-col gap-1.5 px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)] select-none ${isSelected ? 'bg-[var(--app-subtle-bg)]' : ''}`}
+                className={`session-list-item flex w-full flex-col gap-2 px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)] select-none ${isSelected ? 'bg-[var(--app-subtle-bg)]' : ''}`}
                 style={{ WebkitTouchCallout: 'none' }}
             >
                 <div className="flex items-center justify-between gap-3">
@@ -301,7 +339,7 @@ function SessionItem(props: {
                         ) : (
                             <span className="flex h-4 w-4 items-center justify-center" aria-hidden="true">
                                 <span
-                                    className={`h-2 w-2 rounded-full ${statusDotClass}`}
+                                    className={`h-2.5 w-2.5 rounded-full ${statusDotClass}`}
                                 />
                             </span>
                         )}
@@ -408,14 +446,18 @@ export function SessionList(props: {
     isLoading: boolean
     renderHeader?: boolean
     api: ApiClient | null
+    viewMode?: ViewMode
 }) {
     const { t } = useTranslation()
     const { renderHeader = true, api } = props
     const toast = useSimpleToast()
-    const groups = useMemo(
-        () => groupSessionsByDirectory(props.sessions),
-        [props.sessions]
-    )
+
+    const [internalViewMode, setInternalViewMode] = useState<ViewMode>(() => {
+        const saved = localStorage.getItem('hapi-session-view')
+        return saved === 'by-project' ? 'by-project' : 'active'
+    })
+    const viewMode = props.viewMode ?? internalViewMode
+
     const [collapseOverrides, setCollapseOverrides] = useState<Map<string, boolean>>(
         () => new Map()
     )
@@ -424,6 +466,19 @@ export function SessionList(props: {
     const [bulkArchiveOpen, setBulkArchiveOpen] = useState(false)
     const [isBulkArchiving, setIsBulkArchiving] = useState(false)
     const [bulkArchiveError, setBulkArchiveError] = useState<string | null>(null)
+
+    const groups = useMemo(
+        () => viewMode === 'active'
+            ? groupSessionsByActivity(props.sessions)
+            : groupSessionsByDirectory(props.sessions),
+        [props.sessions, viewMode]
+    )
+
+    const handleSetViewMode = (mode: ViewMode) => {
+        setInternalViewMode(mode)
+        setCollapseOverrides(new Map())
+        localStorage.setItem('hapi-session-view', mode)
+    }
 
     const isGroupCollapsed = (group: SessionGroup): boolean => {
         const override = collapseOverrides.get(group.directory)
@@ -535,10 +590,16 @@ export function SessionList(props: {
         void handleBulkArchiveConfirm()
     }
 
+    const getGroupLabel = (group: SessionGroup): string => {
+        if (group.directory === '__active__') return t('sessions.group.active')
+        if (group.directory === '__inactive__') return t('sessions.group.inactive')
+        return group.displayName
+    }
+
     return (
         <div className="mx-auto w-full max-w-content flex flex-col">
             {renderHeader ? (
-                <div className="flex items-center justify-between px-3 py-1">
+                <div className="flex items-center justify-between px-3 py-2">
                     {selectionMode ? (
                         <>
                             <div className="flex items-center gap-2">
@@ -569,10 +630,36 @@ export function SessionList(props: {
                         </>
                     ) : (
                         <>
-                            <div className="text-xs text-[var(--app-hint)]">
-                                {t('sessions.count', { n: props.sessions.length, m: groups.length })}
+                            <div className="text-sm text-[var(--app-hint)]">
+                                {viewMode === 'active'
+                                    ? t('sessions.count.simple', { n: props.sessions.length })
+                                    : t('sessions.count', { n: props.sessions.length, m: groups.length })}
                             </div>
                             <div className="flex items-center gap-2">
+                                <div className="flex items-center rounded-lg bg-[var(--app-secondary-bg)] p-0.5 text-xs">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleSetViewMode('active')}
+                                        className={`px-2.5 py-1 rounded-md transition-colors font-medium ${
+                                            viewMode === 'active'
+                                                ? 'bg-[var(--app-bg)] text-[var(--app-text)] shadow-sm'
+                                                : 'text-[var(--app-hint)] hover:text-[var(--app-text)]'
+                                        }`}
+                                    >
+                                        {t('sessions.view.active')}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleSetViewMode('by-project')}
+                                        className={`px-2.5 py-1 rounded-md transition-colors font-medium ${
+                                            viewMode === 'by-project'
+                                                ? 'bg-[var(--app-bg)] text-[var(--app-text)] shadow-sm'
+                                                : 'text-[var(--app-hint)] hover:text-[var(--app-text)]'
+                                        }`}
+                                    >
+                                        {t('sessions.view.byProject')}
+                                    </button>
+                                </div>
                                 <button
                                     type="button"
                                     onClick={toggleSelectionMode}
@@ -597,6 +684,12 @@ export function SessionList(props: {
             ) : null}
 
             <div className="flex flex-col">
+                {viewMode === 'active' && !props.sessions.some(s => s.active) ? (
+                    <div className="flex flex-col items-center justify-center gap-1 px-6 py-8 text-center">
+                        <span className="text-sm text-[var(--app-hint)]">No active sessions</span>
+                        <span className="text-xs text-[var(--app-hint)]">Start a new session or resume one below</span>
+                    </div>
+                ) : null}
                 {groups.map((group) => {
                     const isCollapsed = isGroupCollapsed(group)
                     return (
@@ -604,15 +697,15 @@ export function SessionList(props: {
                             <button
                                 type="button"
                                 onClick={() => toggleGroup(group.directory, isCollapsed)}
-                                className="sticky top-0 z-10 flex w-full items-center gap-2 px-3 py-2 text-left bg-[var(--app-bg)] border-b border-[var(--app-divider)] transition-colors hover:bg-[var(--app-secondary-bg)]"
+                                className="sticky top-0 z-10 flex w-full items-center gap-2 px-3 py-2 text-left bg-[var(--app-secondary-bg)] border-b border-[var(--app-divider)] shadow-sm transition-colors hover:brightness-95"
                             >
                                 <ChevronIcon
                                     className="h-4 w-4 text-[var(--app-hint)]"
                                     collapsed={isCollapsed}
                                 />
                                 <div className="flex items-center gap-2 min-w-0 flex-1">
-                                    <span className="font-medium text-sm break-words" title={group.directory}>
-                                        {group.displayName}
+                                    <span className="text-xs font-semibold uppercase tracking-wide text-[var(--app-hint)] break-words" title={group.directory === '__active__' || group.directory === '__inactive__' ? undefined : group.directory}>
+                                        {getGroupLabel(group)}
                                     </span>
                                     <span className="shrink-0 text-xs text-[var(--app-hint)]">
                                         ({group.sessions.length})
