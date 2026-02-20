@@ -1,4 +1,4 @@
-name: Test
+name: Tests
 
 on:
   push:
@@ -7,10 +7,17 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    name: Tests
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
       - run: bun install
+      - name: Generate version files
+        run: |
+          mkdir -p server/dist
+          bun run scripts/get-version.ts > server/dist/version.json
+          bun run scripts/get-version.ts --ts > server/src/version.generated.ts
+          bun run scripts/get-version.ts --ts > cli/src/version.generated.ts
       - run: bun typecheck
       - name: Create integration test env
         run: |
