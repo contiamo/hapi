@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
     Navigate,
@@ -10,7 +10,7 @@ import {
 } from '@tanstack/react-router'
 import { App } from '@/App'
 import { SessionChat } from '@/components/SessionChat'
-import { SessionList } from '@/components/SessionList'
+import { SessionList, type ViewMode } from '@/components/SessionList'
 import { NewSession } from '@/components/NewSession'
 import { LoadingState } from '@/components/LoadingState'
 import { useAppContext } from '@/lib/app-context'
@@ -96,6 +96,16 @@ function SessionsPage() {
     const { t } = useTranslation()
     const { sessions, isLoading, error, refetch } = useSessions(api)
 
+    const [viewMode, setViewMode] = useState<ViewMode>(() => {
+        const saved = localStorage.getItem('hapi-session-view')
+        return saved === 'by-project' ? 'by-project' : 'active'
+    })
+
+    const handleSetViewMode = (mode: ViewMode) => {
+        setViewMode(mode)
+        localStorage.setItem('hapi-session-view', mode)
+    }
+
     const handleRefresh = useCallback(() => {
         void refetch()
     }, [refetch])
@@ -106,10 +116,36 @@ function SessionsPage() {
         <div className="flex h-full flex-col">
             <div className="bg-[var(--app-bg)] pt-[env(safe-area-inset-top)]">
                 <div className="mx-auto w-full max-w-content flex items-center justify-between px-3 py-2">
-                    <div className="text-xs text-[var(--app-hint)]">
-                        {t('sessions.count', { n: sessions.length, m: projectCount })}
+                    <div className="text-sm text-[var(--app-hint)]">
+                        {viewMode === 'active'
+                            ? t('sessions.count.simple', { n: sessions.length })
+                            : t('sessions.count', { n: sessions.length, m: projectCount })}
                     </div>
                     <div className="flex items-center gap-2">
+                        <div className="flex items-center rounded-lg bg-[var(--app-secondary-bg)] p-0.5 text-xs">
+                            <button
+                                type="button"
+                                onClick={() => handleSetViewMode('active')}
+                                className={`px-2.5 py-1 rounded-md transition-colors font-medium ${
+                                    viewMode === 'active'
+                                        ? 'bg-[var(--app-bg)] text-[var(--app-text)] shadow-sm'
+                                        : 'text-[var(--app-hint)] hover:text-[var(--app-text)]'
+                                }`}
+                            >
+                                {t('sessions.view.active')}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleSetViewMode('by-project')}
+                                className={`px-2.5 py-1 rounded-md transition-colors font-medium ${
+                                    viewMode === 'by-project'
+                                        ? 'bg-[var(--app-bg)] text-[var(--app-text)] shadow-sm'
+                                        : 'text-[var(--app-hint)] hover:text-[var(--app-text)]'
+                                }`}
+                            >
+                                {t('sessions.view.byProject')}
+                            </button>
+                        </div>
                         <button
                             type="button"
                             onClick={() => navigate({ to: '/settings' })}
@@ -146,6 +182,7 @@ function SessionsPage() {
                     isLoading={isLoading}
                     renderHeader={false}
                     api={api}
+                    viewMode={viewMode}
                 />
             </div>
         </div>
