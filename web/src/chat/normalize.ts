@@ -14,7 +14,7 @@ export function normalizeDecryptedMessage(message: DecryptedMessage): Normalized
             createdAt: message.createdAt,
             role: 'agent',
             isSidechain: false,
-            content: [{ type: 'text', text: safeStringify(message.content), uuid: message.id, parentUUID: null }],
+            content: [{ type: 'unknown-message', raw: message.content }],
             status: message.status,
             originalText: message.originalText
         }
@@ -52,7 +52,7 @@ export function normalizeDecryptedMessage(message: DecryptedMessage): Normalized
                 createdAt: message.createdAt,
                 role: 'agent',
                 isSidechain: false,
-                content: [{ type: 'text', text: safeStringify(record.content), uuid: message.id, parentUUID: null }],
+                content: [{ type: 'unknown-message', raw: record.content }],
                 meta: record.meta,
                 status: message.status,
                 originalText: message.originalText
@@ -65,7 +65,7 @@ export function normalizeDecryptedMessage(message: DecryptedMessage): Normalized
         createdAt: message.createdAt,
         role: 'agent',
         isSidechain: false,
-        content: [{ type: 'text', text: safeStringify(record.content), uuid: message.id, parentUUID: null }],
+        content: [{ type: 'unknown-message', raw: record.content }],
         meta: record.meta,
         status: message.status,
         originalText: message.originalText

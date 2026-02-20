@@ -263,7 +263,38 @@ export function normalizeAgentRecord(
                 meta
             }
         }
-        return null
+        if (data.type === 'rate_limit_event') {
+            const info = isObject(data.rate_limit_info) ? data.rate_limit_info : null
+            const status = asString(info?.status) ?? 'unknown'
+            // When the request was allowed through, this is background telemetry - skip it.
+            if (status === 'allowed') return null
+            return {
+                id: messageId,
+                localId,
+                createdAt,
+                role: 'event',
+                content: {
+                    type: 'rate-limit',
+                    status,
+                    rateLimitType: asString(info?.rateLimitType) ?? 'unknown',
+                    resetAt: asNumber(info?.resetAt) ?? null,
+                    overageStatus: asString(info?.overageStatus) ?? null
+                },
+                isSidechain: false,
+                meta
+            }
+        }
+        // Unknown data type inside an output wrapper - surface it as an unknown-message block
+        // so new SDK message types are visible and can be handled explicitly.
+        return {
+            id: messageId,
+            localId,
+            createdAt,
+            role: 'agent',
+            isSidechain: false,
+            content: [{ type: 'unknown-message', raw: content }],
+            meta
+        }
     }
 
     if (content.type === 'event') {

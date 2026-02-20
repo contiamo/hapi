@@ -63,6 +63,12 @@ export function getEventPresentation(event: AgentEvent): EventPresentation {
         const formatted = saved >= 1000 ? `${Math.round(saved / 1000)}K` : String(saved)
         return { icon: '📦', text: `Context compacted (saved ${formatted} tokens)` }
     }
+    if (event.type === 'rate-limit') {
+        const limitType = typeof event.rateLimitType === 'string' ? event.rateLimitType : 'unknown'
+        const resetAt = typeof event.resetAt === 'number' ? event.resetAt : null
+        const resetText = resetAt ? ` — resets ${formatUnixTimestamp(resetAt)}` : ''
+        return { icon: '⏳', text: `Rate limit reached (${limitType})${resetText}` }
+    }
     try {
         return { icon: null, text: JSON.stringify(event) }
     } catch {
