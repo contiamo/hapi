@@ -39,7 +39,12 @@ export default {
 
   // Sessions page
   'sessions.count': '{n} sessions in {m} projects',
+  'sessions.count.simple': '{n} sessions',
   'sessions.new': 'New Session',
+  'sessions.view.active': 'Active',
+  'sessions.view.byProject': 'By Project',
+  'sessions.group.active': 'Active',
+  'sessions.group.inactive': 'Inactive',
 
   // Session list
   'session.item.path': 'path',

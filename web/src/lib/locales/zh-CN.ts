@@ -39,7 +39,12 @@ export default {
 
   // Sessions page
   'sessions.count': '{n} 个会话，{m} 个项目',
+  'sessions.count.simple': '{n} 个会话',
   'sessions.new': '新建会话',
+  'sessions.view.active': '活跃',
+  'sessions.view.byProject': '按项目',
+  'sessions.group.active': '活跃',
+  'sessions.group.inactive': '非活跃',
 
   // Session list
   'session.item.path': '路径',
