@@ -8,7 +8,7 @@
         "build": "bun run build:cli && bun run build:server && bun run build:web",
         "build:cli": "cd cli && bun run build",
         "build:single-exe": "mkdir -p server/dist && bun run scripts/get-version.ts > server/dist/version.json && bun run scripts/get-version.ts --ts > server/src/version.generated.ts && bun run scripts/get-version.ts --ts > cli/src/version.generated.ts && bun run download:tunwg && bun run build:web && (cd server && bun run generate:embedded-web-assets) && (cd cli && bun run build:exe:allinone)",
-        "build:single-exe:all": "bun run download:tunwg && bun run build:web && (cd server && bun run generate:embedded-web-assets) && (cd cli && bun run build:exe:allinone:all)",
+        "build:single-exe:all": "mkdir -p server/dist && bun run scripts/get-version.ts > server/dist/version.json && bun run scripts/get-version.ts --ts > server/src/version.generated.ts && bun run scripts/get-version.ts --ts > cli/src/version.generated.ts && bun run download:tunwg && bun run build:web && (cd server && bun run generate:embedded-web-assets) && (cd cli && bun run build:exe:allinone:all)",
         "download:tunwg": "bun run server/scripts/download-tunwg.ts",
         "build:server": "cd server && bun run build",
         "build:web": "cd web && bun run build",
