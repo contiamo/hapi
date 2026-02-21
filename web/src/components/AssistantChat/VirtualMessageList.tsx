@@ -1,5 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useImperativeHandle, forwardRef, useLayoutEffect, useState, type ComponentType } from 'react'
+import { useImperativeHandle, forwardRef, type ComponentType } from 'react'
 import { ThreadPrimitive, useAssistantState } from '@assistant-ui/react'
 
 export type VirtualMessageListHandle = {
@@ -16,24 +16,16 @@ type MessageComponents = {
 
 type VirtualMessageListProps = {
     components: MessageComponents
-    parentRef: React.RefObject<HTMLDivElement | null>
+    scrollElement: HTMLDivElement | null
 }
 
 export const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMessageListProps>(
     function VirtualMessageList(props, ref) {
         const messagesCount = useAssistantState((state) => state.thread.messages.length)
 
-        // Track the scroll element in state so the virtualizer re-initializes when it becomes available.
-        // parentRef.current is null on first render; setting it in a layout effect triggers a synchronous
-        // re-render before the browser paints, so the virtualizer never renders without a scroll element.
-        const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null)
-        useLayoutEffect(() => {
-            setScrollElement(props.parentRef.current)
-        }, []) // eslint-disable-line react-hooks/exhaustive-deps -- intentionally mount-only
-
         const virtualizer = useVirtualizer({
             count: messagesCount,
-            getScrollElement: () => scrollElement,
+            getScrollElement: () => props.scrollElement,
             estimateSize: () => 212, // 200px base + 12px gap (0.75rem)
             overscan: 5,
             measureElement:

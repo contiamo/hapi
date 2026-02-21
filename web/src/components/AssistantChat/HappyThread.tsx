@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ThreadPrimitive, useAssistantState } from '@assistant-ui/react'
 import type { ApiClient } from '@/api/client'
 import type { SessionMetadataSummary } from '@/types/api'
@@ -77,6 +77,14 @@ export function HappyThread(props: {
 }) {
     const { t } = useTranslation()
     const viewportRef = useRef<HTMLDivElement | null>(null)
+    // scrollElement state drives the virtualizer — it must be non-null when the virtualizer
+    // first initializes so TanStack Virtual attaches its ResizeObserver correctly. A callback
+    // ref sets both the imperative ref (for scrollTop/listeners) and this state in one step.
+    const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null)
+    const setViewportRef = useCallback((el: HTMLDivElement | null) => {
+        viewportRef.current = el
+        setScrollElement(el)
+    }, [])
     const virtualizerRef = useRef<VirtualMessageListHandle | null>(null)
     const topSentinelRef = useRef<HTMLDivElement | null>(null)
     const loadLockRef = useRef(false)
@@ -329,7 +337,7 @@ export function HappyThread(props: {
             </div>
 
             <ThreadPrimitive.Viewport asChild autoScroll={false}>
-                <div ref={viewportRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+                <div ref={setViewportRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
                     {/* topSentinelRef has zero height so it creates no offset — the
                         virtualizer container starts at offset 0 from the scroll element top.
                         TanStack Virtual assumes its container begins at the scroll element's top
@@ -339,7 +347,7 @@ export function HappyThread(props: {
                         <VirtualMessageList
                             ref={virtualizerRef}
                             components={THREAD_MESSAGE_COMPONENTS}
-                            parentRef={viewportRef}
+                            scrollElement={scrollElement}
                         />
                     </div>
                 </div>
