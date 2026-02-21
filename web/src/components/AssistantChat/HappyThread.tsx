@@ -85,10 +85,9 @@ export function HappyThread(props: {
         viewportRef.current = el
         setScrollElement(el)
     }, [])
-    // Drives "Load older" visibility — true means user is at/near bottom so no need to show it.
-    const [isAtBottom, setIsAtBottom] = useState(true)
+    // Drives "Load older" overlay — true when user has scrolled within 200px of the top.
+    const [isNearTop, setIsNearTop] = useState(false)
     const virtualizerRef = useRef<VirtualMessageListHandle | null>(null)
-    const topSentinelRef = useRef<HTMLDivElement | null>(null)
     const loadLockRef = useRef(false)
     const pendingScrollRef = useRef<{ scrollTop: number; scrollHeight: number } | null>(null)
     const prevLoadingMoreRef = useRef(false)
@@ -126,26 +125,34 @@ export function HappyThread(props: {
         onLoadMoreRef.current = props.onLoadMore
     }, [props.onLoadMore])
 
-    // Track scroll position to toggle autoScroll (stable listener using refs)
+    // Track scroll position to toggle autoScroll and near-top state (stable listener using refs)
     useEffect(() => {
         const viewport = viewportRef.current
         if (!viewport) return
 
-        const THRESHOLD_PX = 120
+        const BOTTOM_THRESHOLD_PX = 120
+        const TOP_THRESHOLD_PX = 200
+
+        let nearTop = false
 
         const handleScroll = () => {
             const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight
-            const isNearBottom = distanceFromBottom < THRESHOLD_PX
+            const isNearBottom = distanceFromBottom < BOTTOM_THRESHOLD_PX
 
             autoScrollEnabledRef.current = isNearBottom
 
             if (isNearBottom !== atBottomRef.current) {
                 atBottomRef.current = isNearBottom
-                setIsAtBottom(isNearBottom)
                 onAtBottomChangeRef.current(isNearBottom)
                 if (isNearBottom) {
                     onFlushPendingRef.current()
                 }
+            }
+
+            const nextNearTop = viewport.scrollTop < TOP_THRESHOLD_PX
+            if (nextNearTop !== nearTop) {
+                nearTop = nextNearTop
+                setIsNearTop(nextNearTop)
             }
         }
 
@@ -166,7 +173,6 @@ export function HappyThread(props: {
         autoScrollEnabledRef.current = true
         if (!atBottomRef.current) {
             atBottomRef.current = true
-            setIsAtBottom(true)
             onAtBottomChangeRef.current(true)
         }
         onFlushPendingRef.current()
@@ -235,33 +241,6 @@ export function HappyThread(props: {
         handleLoadMoreRef.current = handleLoadMore
     }, [handleLoadMore])
 
-    useEffect(() => {
-        const sentinel = topSentinelRef.current
-        const viewport = viewportRef.current
-        if (!sentinel || !viewport || !props.hasMoreMessages || props.isLoadingMessages) {
-            return
-        }
-        if (typeof IntersectionObserver === 'undefined') {
-            return
-        }
-
-        const observer = new IntersectionObserver(
-            (entries) => {
-                for (const entry of entries) {
-                    if (entry.isIntersecting) {
-                        handleLoadMoreRef.current()
-                    }
-                }
-            },
-            {
-                root: viewport,
-                rootMargin: '200px 0px 0px 0px'
-            }
-        )
-
-        observer.observe(sentinel)
-        return () => observer.disconnect()
-    }, [props.hasMoreMessages, props.isLoadingMessages])
 
     useLayoutEffect(() => {
         const pending = pendingScrollRef.current
@@ -289,7 +268,7 @@ export function HappyThread(props: {
 
     return (
         <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col relative">
-            {/* Non-scrolling header: skeleton, warnings, load-more. Kept outside the scroll
+            {/* Non-scrolling header: skeleton and warnings only. Kept outside the scroll
                 element so the virtualizer container sits at offset 0 inside the scroll element.
                 TanStack Virtual assumes its container starts at the scroll element's top edge —
                 any content above it would offset all item positions and make them invisible. */}
@@ -304,33 +283,6 @@ export function HappyThread(props: {
                             </div>
                         ) : null}
 
-                        {props.hasMoreMessages && !isAtBottom ? (
-                            <div className="py-1">
-                                <div className="mx-auto w-fit">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handleLoadMore}
-                                        disabled={props.isLoadingMoreMessages || props.isLoadingMessages}
-                                        aria-busy={props.isLoadingMoreMessages}
-                                        className="gap-1.5 text-xs opacity-80 hover:opacity-100"
-                                    >
-                                        {props.isLoadingMoreMessages ? (
-                                            <>
-                                                <Spinner size="sm" label={null} className="text-current" />
-                                                {t('misc.loading')}
-                                            </>
-                                        ) : (
-                                            <>
-                                                <span aria-hidden="true">↑</span>
-                                                {t('misc.loadOlder')}
-                                            </>
-                                        )}
-                                    </Button>
-                                </div>
-                            </div>
-                        ) : null}
-
                         {import.meta.env.DEV && props.normalizedMessagesCount === 0 && props.rawMessagesCount > 0 ? (
                             <div className="mt-2 rounded-md bg-amber-500/10 p-2 text-xs">
                                 Message normalization returned 0 items for {props.rawMessagesCount} messages (see `web/src/chat/normalize.ts`).
@@ -342,11 +294,6 @@ export function HappyThread(props: {
 
             <ThreadPrimitive.Viewport asChild autoScroll={false}>
                 <div ref={setViewportRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
-                    {/* topSentinelRef has zero height so it creates no offset — the
-                        virtualizer container starts at offset 0 from the scroll element top.
-                        TanStack Virtual assumes its container begins at the scroll element's top
-                        edge; any top offset would misplace all virtual items. */}
-                    <div ref={topSentinelRef} className="h-0 w-full" aria-hidden="true" />
                     <div className="mx-auto w-full max-w-content min-w-0 px-3 pb-3">
                         <VirtualMessageList
                             ref={virtualizerRef}
@@ -356,6 +303,24 @@ export function HappyThread(props: {
                     </div>
                 </div>
             </ThreadPrimitive.Viewport>
+            {/* Load older / loading overlay — floats over the top of the scroll area.
+                Does not consume layout space so virtualizer item positions stay correct. */}
+            {props.hasMoreMessages && isNearTop ? (
+                props.isLoadingMoreMessages ? (
+                    <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 bg-[var(--app-button)] text-[var(--app-button-text)] px-3 py-1.5 rounded-full text-sm font-medium shadow-lg opacity-90">
+                        <Spinner size="sm" label={null} className="text-current" />
+                        {t('misc.loading')}
+                    </div>
+                ) : (
+                    <button
+                        onClick={handleLoadMore}
+                        disabled={props.isLoadingMessages}
+                        className="absolute top-2 left-1/2 -translate-x-1/2 bg-[var(--app-button)] text-[var(--app-button-text)] px-3 py-1.5 rounded-full text-sm font-medium shadow-lg z-10 opacity-90 hover:opacity-100"
+                    >
+                        ↑ {t('misc.loadOlder')}
+                    </button>
+                )
+            ) : null}
             <NewMessagesIndicator count={props.pendingCount} onClick={scrollToBottom} />
         </ThreadPrimitive.Root>
     )
