@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.13.0] (2026-02-21)
+
+### Features
+
+* add /rollback slash command and session corruption hint (#16)
+* **web**: add active/by-project view toggle to session list (#10)
+
+### Bug Fixes
+
+* cancel pending permission requests on session reload or resume
+* treat completedRequests as Record not Array in messageHistoryHandlers
+* handle unknown SDK message types instead of leaking raw JSON (#9)
+* auto-resume forked sessions and improve inactive session UX (#11)
+
 ## [0.12.2] (2026-02-20)
 
 ### Bug Fixes
