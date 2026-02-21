@@ -30,10 +30,11 @@ export function handleMessageHistoryModification(
     session: StoredSession,
     reason: MessageHistoryModificationReason
 ): MessageHistoryModificationResult {
-    // Capture agentState stats before clearing for audit trail
-    const agentState = session.agentState as { completedRequests?: Array<{ id: string }> } | null | undefined
-    const completedRequests = agentState?.completedRequests ?? []
-    const requestIds = completedRequests.map((r) => r.id)
+    // Capture agentState stats before clearing for audit trail.
+    // completedRequests is a Record<string, ...> keyed by request ID (not an Array).
+    const agentState = session.agentState as { completedRequests?: Record<string, unknown> } | null | undefined
+    const completedRequests = agentState?.completedRequests ?? {}
+    const requestIds = Object.keys(completedRequests)
     const firstTwo = requestIds.slice(0, 2)
     const lastTwo = requestIds.slice(-2)
 
@@ -43,9 +44,9 @@ export function handleMessageHistoryModification(
         active: session.active,
         before: {
             agentStateExists: session.agentState !== null,
-            completedRequestsCount: completedRequests.length,
+            completedRequestsCount: requestIds.length,
             firstRequests: firstTwo,
-            lastRequests: completedRequests.length > 2 ? lastTwo : [],
+            lastRequests: requestIds.length > 2 ? lastTwo : [],
         },
         timestamp: Date.now()
     })
