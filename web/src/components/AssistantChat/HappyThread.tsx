@@ -294,7 +294,7 @@ export function HappyThread(props: {
                 TanStack Virtual assumes its container starts at the scroll element's top edge —
                 any content above it would offset all item positions and make them invisible. */}
             <div className="flex-shrink-0 mx-auto w-full max-w-content min-w-0 px-3">
-                {props.isLoadingMessages ? (
+                {props.isLoadingMessages && props.rawMessagesCount === 0 ? (
                     <MessageSkeleton />
                 ) : (
                     <>
