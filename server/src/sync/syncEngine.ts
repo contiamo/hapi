@@ -8,6 +8,7 @@
  */
 
 import type { DecryptedMessage, ModelMode, PermissionMode, Session, SyncEvent } from '@hapi/protocol/types'
+import type { AgentState } from '@hapi/protocol/schemas'
 import type { Server } from 'socket.io'
 import { randomUUID } from 'node:crypto'
 import type { Store } from '../store'
@@ -451,6 +452,9 @@ export class SyncEngine {
                     throw new Error('Session state changed during resume - session may have already reconnected')
                 }
 
+                // Cancel any pending permission requests — the old CLI process is gone
+                this.cancelPendingPermissions(sessionId)
+
                 await this.spawnWithResume(currentSession)
                 console.log('[SyncEngine.performResume] spawnWithResume completed:', { sessionId })
                 return
@@ -660,6 +664,64 @@ export class SyncEngine {
         return false
     }
 
+    private cancelPendingPermissions(sessionId: string): void {
+        const session = this.sessionCache.getSession(sessionId)
+        if (!session) return
+
+        const pending = session.agentState?.requests
+        if (!pending || Object.keys(pending).length === 0) return
+
+        const now = Date.now()
+        const canceled: NonNullable<AgentState['completedRequests']> = {}
+        for (const [id, req] of Object.entries(pending)) {
+            canceled[id] = {
+                tool: req.tool,
+                arguments: req.arguments,
+                createdAt: req.createdAt ?? now,
+                completedAt: now,
+                status: 'canceled',
+            }
+        }
+
+        const updatedAgentState: AgentState = {
+            ...session.agentState,
+            requests: {},
+            completedRequests: {
+                ...session.agentState?.completedRequests,
+                ...canceled,
+            },
+        }
+
+        const result = this.store.sessions.updateSessionAgentState(
+            sessionId,
+            updatedAgentState,
+            session.agentStateVersion,
+            session.namespace
+        )
+
+        if (result.result === 'success') {
+            this.sessionCache.refreshSession(sessionId)
+            return
+        }
+
+        if (result.result === 'version-mismatch') {
+            // Another writer updated agentState concurrently — retry once with the current version
+            const retryResult = this.store.sessions.updateSessionAgentState(
+                sessionId,
+                updatedAgentState,
+                result.version,
+                session.namespace
+            )
+            this.sessionCache.refreshSession(sessionId)
+            if (retryResult.result !== 'success') {
+                console.warn('[SyncEngine] Failed to cancel pending permissions after retry:', { sessionId, result: retryResult.result })
+            }
+            return
+        }
+
+        console.warn('[SyncEngine] Failed to cancel pending permissions:', { sessionId, result: result.result })
+    }
+
     async reloadSession(sessionId: string, force: boolean = false, enableYolo: boolean = false): Promise<void> {
         const session = this.getSession(sessionId)
         if (!session) {
@@ -687,6 +749,9 @@ export class SyncEngine {
         // Mark inactive (session object is mutable in cache)
         session.active = false
         session.thinking = false
+
+        // Cancel any pending permission requests — the old CLI process is gone
+        this.cancelPendingPermissions(sessionId)
 
         // Resume using existing logic
         await this.resumeSession(sessionId)
