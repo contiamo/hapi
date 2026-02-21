@@ -85,6 +85,8 @@ export function HappyThread(props: {
         viewportRef.current = el
         setScrollElement(el)
     }, [])
+    // Drives "Load older" visibility — true means user is at/near bottom so no need to show it.
+    const [isAtBottom, setIsAtBottom] = useState(true)
     const virtualizerRef = useRef<VirtualMessageListHandle | null>(null)
     const topSentinelRef = useRef<HTMLDivElement | null>(null)
     const loadLockRef = useRef(false)
@@ -139,6 +141,7 @@ export function HappyThread(props: {
 
             if (isNearBottom !== atBottomRef.current) {
                 atBottomRef.current = isNearBottom
+                setIsAtBottom(isNearBottom)
                 onAtBottomChangeRef.current(isNearBottom)
                 if (isNearBottom) {
                     onFlushPendingRef.current()
@@ -163,6 +166,7 @@ export function HappyThread(props: {
         autoScrollEnabledRef.current = true
         if (!atBottomRef.current) {
             atBottomRef.current = true
+            setIsAtBottom(true)
             onAtBottomChangeRef.current(true)
         }
         onFlushPendingRef.current()
@@ -300,7 +304,7 @@ export function HappyThread(props: {
                             </div>
                         ) : null}
 
-                        {props.hasMoreMessages ? (
+                        {props.hasMoreMessages && !isAtBottom ? (
                             <div className="py-1">
                                 <div className="mx-auto w-fit">
                                     <Button
