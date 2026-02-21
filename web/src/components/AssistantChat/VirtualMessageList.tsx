@@ -1,5 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useImperativeHandle, forwardRef, useEffect, useState, type ComponentType } from 'react'
+import { useImperativeHandle, forwardRef, useLayoutEffect, useState, type ComponentType } from 'react'
 import { ThreadPrimitive, useAssistantState } from '@assistant-ui/react'
 
 export type VirtualMessageListHandle = {
@@ -24,10 +24,10 @@ export const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMe
         const messagesCount = useAssistantState((state) => state.thread.messages.length)
 
         // Track the scroll element in state so the virtualizer re-initializes when it becomes available.
-        // parentRef.current is null on first render; setting it in an effect triggers a re-render once
-        // the parent scroll container is mounted, causing the virtualizer to observe it.
+        // parentRef.current is null on first render; setting it in a layout effect triggers a synchronous
+        // re-render before the browser paints, so the virtualizer never renders without a scroll element.
         const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null)
-        useEffect(() => {
+        useLayoutEffect(() => {
             setScrollElement(props.parentRef.current)
         }, []) // eslint-disable-line react-hooks/exhaustive-deps -- intentionally mount-only
 
@@ -88,9 +88,9 @@ export const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMe
                             left: 0,
                             width: '100%',
                             transform: `translateY(${virtualItem.start}px)`,
-                            // Include gap in measured height so position calculations stay accurate
-                            // as items are measured and replace the initial estimate
-                            marginBottom: '0.75rem',
+                            // paddingBottom (not marginBottom) so getBoundingClientRect().height
+                            // includes the gap — margins are excluded from that measurement
+                            paddingBottom: '0.75rem',
                         }}
                     >
                         <ThreadPrimitive.MessageByIndex

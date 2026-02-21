@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import { ThreadPrimitive, useAssistantState } from '@assistant-ui/react'
 import type { ApiClient } from '@/api/client'
 import type { SessionMetadataSummary } from '@/types/api'
@@ -93,17 +93,13 @@ export function HappyThread(props: {
     const onFlushPendingRef = useRef(props.onFlushPending)
     const forceScrollTokenRef = useRef(props.forceScrollToken)
 
-    // Smart scroll state: autoScroll enabled when user is near bottom
-    const [autoScrollEnabled, setAutoScrollEnabled] = useState(true)
-    const autoScrollEnabledRef = useRef(autoScrollEnabled)
+    // Smart scroll: enabled when user is near bottom. Pure ref — never needs to trigger a render.
+    const autoScrollEnabledRef = useRef(true)
 
     // Get messages count for virtual scrolling
     const messagesCount = useAssistantState(({ thread }) => thread.messages.length)
 
-    // Keep refs in sync with state
-    useEffect(() => {
-        autoScrollEnabledRef.current = autoScrollEnabled
-    }, [autoScrollEnabled])
+    // Keep refs in sync with props
     useEffect(() => {
         onAtBottomChangeRef.current = props.onAtBottomChange
     }, [props.onAtBottomChange])
@@ -131,11 +127,7 @@ export function HappyThread(props: {
             const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight
             const isNearBottom = distanceFromBottom < THRESHOLD_PX
 
-            if (isNearBottom) {
-                if (!autoScrollEnabledRef.current) setAutoScrollEnabled(true)
-            } else if (autoScrollEnabledRef.current) {
-                setAutoScrollEnabled(false)
-            }
+            autoScrollEnabledRef.current = isNearBottom
 
             if (isNearBottom !== atBottomRef.current) {
                 atBottomRef.current = isNearBottom
@@ -160,7 +152,7 @@ export function HappyThread(props: {
                 viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' })
             }
         }
-        setAutoScrollEnabled(true)
+        autoScrollEnabledRef.current = true
         if (!atBottomRef.current) {
             atBottomRef.current = true
             onAtBottomChangeRef.current(true)
@@ -168,9 +160,9 @@ export function HappyThread(props: {
         onFlushPendingRef.current()
     }, [messagesCount])
 
-    // Reset state when session changes
+    // Reset scroll tracking when session changes
     useEffect(() => {
-        setAutoScrollEnabled(true)
+        autoScrollEnabledRef.current = true
         atBottomRef.current = true
         onAtBottomChangeRef.current(true)
         forceScrollTokenRef.current = props.forceScrollToken
