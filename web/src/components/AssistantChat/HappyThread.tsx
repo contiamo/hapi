@@ -77,6 +77,14 @@ export function HappyThread(props: {
 }) {
     const { t } = useTranslation()
     const viewportRef = useRef<HTMLDivElement | null>(null)
+    // scrollElement state drives the virtualizer — it must be non-null when the virtualizer
+    // first initializes so TanStack Virtual attaches its ResizeObserver correctly. A callback
+    // ref sets both the imperative ref (for scrollTop/listeners) and this state in one step.
+    const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null)
+    const setViewportRef = useCallback((el: HTMLDivElement | null) => {
+        viewportRef.current = el
+        setScrollElement(el)
+    }, [])
     const virtualizerRef = useRef<VirtualMessageListHandle | null>(null)
     const topSentinelRef = useRef<HTMLDivElement | null>(null)
     const loadLockRef = useRef(false)
@@ -93,17 +101,13 @@ export function HappyThread(props: {
     const onFlushPendingRef = useRef(props.onFlushPending)
     const forceScrollTokenRef = useRef(props.forceScrollToken)
 
-    // Smart scroll state: autoScroll enabled when user is near bottom
-    const [autoScrollEnabled, setAutoScrollEnabled] = useState(true)
-    const autoScrollEnabledRef = useRef(autoScrollEnabled)
+    // Smart scroll: enabled when user is near bottom. Pure ref — never needs to trigger a render.
+    const autoScrollEnabledRef = useRef(true)
 
     // Get messages count for virtual scrolling
     const messagesCount = useAssistantState(({ thread }) => thread.messages.length)
 
-    // Keep refs in sync with state
-    useEffect(() => {
-        autoScrollEnabledRef.current = autoScrollEnabled
-    }, [autoScrollEnabled])
+    // Keep refs in sync with props
     useEffect(() => {
         onAtBottomChangeRef.current = props.onAtBottomChange
     }, [props.onAtBottomChange])
@@ -131,11 +135,7 @@ export function HappyThread(props: {
             const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight
             const isNearBottom = distanceFromBottom < THRESHOLD_PX
 
-            if (isNearBottom) {
-                if (!autoScrollEnabledRef.current) setAutoScrollEnabled(true)
-            } else if (autoScrollEnabledRef.current) {
-                setAutoScrollEnabled(false)
-            }
+            autoScrollEnabledRef.current = isNearBottom
 
             if (isNearBottom !== atBottomRef.current) {
                 atBottomRef.current = isNearBottom
@@ -160,7 +160,7 @@ export function HappyThread(props: {
                 viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' })
             }
         }
-        setAutoScrollEnabled(true)
+        autoScrollEnabledRef.current = true
         if (!atBottomRef.current) {
             atBottomRef.current = true
             onAtBottomChangeRef.current(true)
@@ -168,9 +168,9 @@ export function HappyThread(props: {
         onFlushPendingRef.current()
     }, [messagesCount])
 
-    // Reset state when session changes
+    // Reset scroll tracking when session changes
     useEffect(() => {
-        setAutoScrollEnabled(true)
+        autoScrollEnabledRef.current = true
         atBottomRef.current = true
         onAtBottomChangeRef.current(true)
         forceScrollTokenRef.current = props.forceScrollToken
@@ -285,61 +285,70 @@ export function HappyThread(props: {
 
     return (
         <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col relative">
+            {/* Non-scrolling header: skeleton, warnings, load-more. Kept outside the scroll
+                element so the virtualizer container sits at offset 0 inside the scroll element.
+                TanStack Virtual assumes its container starts at the scroll element's top edge —
+                any content above it would offset all item positions and make them invisible. */}
+            <div className="flex-shrink-0 mx-auto w-full max-w-content min-w-0 px-3">
+                {props.isLoadingMessages ? (
+                    <MessageSkeleton />
+                ) : (
+                    <>
+                        {props.messagesWarning ? (
+                            <div className="mt-2 rounded-md bg-amber-500/10 p-2 text-xs">
+                                {props.messagesWarning}
+                            </div>
+                        ) : null}
+
+                        {props.hasMoreMessages ? (
+                            <div className="py-1">
+                                <div className="mx-auto w-fit">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleLoadMore}
+                                        disabled={props.isLoadingMoreMessages || props.isLoadingMessages}
+                                        aria-busy={props.isLoadingMoreMessages}
+                                        className="gap-1.5 text-xs opacity-80 hover:opacity-100"
+                                    >
+                                        {props.isLoadingMoreMessages ? (
+                                            <>
+                                                <Spinner size="sm" label={null} className="text-current" />
+                                                {t('misc.loading')}
+                                            </>
+                                        ) : (
+                                            <>
+                                                <span aria-hidden="true">↑</span>
+                                                {t('misc.loadOlder')}
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
+                            </div>
+                        ) : null}
+
+                        {import.meta.env.DEV && props.normalizedMessagesCount === 0 && props.rawMessagesCount > 0 ? (
+                            <div className="mt-2 rounded-md bg-amber-500/10 p-2 text-xs">
+                                Message normalization returned 0 items for {props.rawMessagesCount} messages (see `web/src/chat/normalize.ts`).
+                            </div>
+                        ) : null}
+                    </>
+                )}
+            </div>
+
             <ThreadPrimitive.Viewport asChild autoScroll={false}>
-                <div ref={viewportRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
-                    <div className="mx-auto w-full max-w-content min-w-0 p-3">
-                        <div ref={topSentinelRef} className="h-px w-full" aria-hidden="true" />
-                        {props.isLoadingMessages ? (
-                            <MessageSkeleton />
-                        ) : (
-                            <>
-                                {props.messagesWarning ? (
-                                    <div className="mb-3 rounded-md bg-amber-500/10 p-2 text-xs">
-                                        {props.messagesWarning}
-                                    </div>
-                                ) : null}
-
-                                {props.hasMoreMessages && !props.isLoadingMessages ? (
-                                    <div className="py-1 mb-2">
-                                        <div className="mx-auto w-fit">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={handleLoadMore}
-                                                disabled={props.isLoadingMoreMessages || props.isLoadingMessages}
-                                                aria-busy={props.isLoadingMoreMessages}
-                                                className="gap-1.5 text-xs opacity-80 hover:opacity-100"
-                                            >
-                                                {props.isLoadingMoreMessages ? (
-                                                    <>
-                                                        <Spinner size="sm" label={null} className="text-current" />
-                                                        {t('misc.loading')}
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <span aria-hidden="true">↑</span>
-                                                        {t('misc.loadOlder')}
-                                                    </>
-                                                )}
-                                            </Button>
-                                        </div>
-                                    </div>
-                                ) : null}
-
-                                {import.meta.env.DEV && props.normalizedMessagesCount === 0 && props.rawMessagesCount > 0 ? (
-                                    <div className="mb-2 rounded-md bg-amber-500/10 p-2 text-xs">
-                                        Message normalization returned 0 items for {props.rawMessagesCount} messages (see `web/src/chat/normalize.ts`).
-                                    </div>
-                                ) : null}
-                            </>
-                        )}
-                        <div className="flex flex-col">
-                            <VirtualMessageList
-                                ref={virtualizerRef}
-                                components={THREAD_MESSAGE_COMPONENTS}
-                                parentRef={viewportRef}
-                            />
-                        </div>
+                <div ref={setViewportRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+                    {/* topSentinelRef has zero height so it creates no offset — the
+                        virtualizer container starts at offset 0 from the scroll element top.
+                        TanStack Virtual assumes its container begins at the scroll element's top
+                        edge; any top offset would misplace all virtual items. */}
+                    <div ref={topSentinelRef} className="h-0 w-full" aria-hidden="true" />
+                    <div className="mx-auto w-full max-w-content min-w-0 px-3 pb-3">
+                        <VirtualMessageList
+                            ref={virtualizerRef}
+                            components={THREAD_MESSAGE_COMPONENTS}
+                            scrollElement={scrollElement}
+                        />
                     </div>
                 </div>
             </ThreadPrimitive.Viewport>
