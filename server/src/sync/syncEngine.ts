@@ -296,6 +296,34 @@ export class SyncEngine {
     async archiveSession(sessionId: string): Promise<void> {
         await this.rpcGateway.killSession(sessionId)
         this.handleSessionEnd({ sid: sessionId, time: Date.now() })
+
+        // Clear agentState to remove orphaned tool blocks and permissions
+        const session = this.store.sessions.getSession(sessionId)
+        if (session) {
+            const result = handleMessageHistoryModification(
+                this.store,
+                sessionId,
+                session,
+                'other' // Use 'other' as reason for archiving
+            )
+
+            if (result.success) {
+                this.sessionCache.refreshSession(sessionId)
+                console.log('[SyncEngine:archiveSession]', {
+                    sessionId,
+                    agentStateCleared: true,
+                    cacheRefreshed: true,
+                    timestamp: Date.now()
+                })
+            } else {
+                console.error('[SyncEngine:archiveSession]', {
+                    sessionId,
+                    error: result.error,
+                    agentStateCleared: false,
+                    timestamp: Date.now()
+                })
+            }
+        }
     }
 
     /**
@@ -602,6 +630,33 @@ export class SyncEngine {
     }
 
     async deleteSession(sessionId: string): Promise<void> {
+        // Clear agentState to remove orphaned tool blocks and permissions
+        const session = this.store.sessions.getSession(sessionId)
+        if (session) {
+            const result = handleMessageHistoryModification(
+                this.store,
+                sessionId,
+                session,
+                'other' // Use 'other' as reason for deletion
+            )
+
+            if (result.success) {
+                this.sessionCache.refreshSession(sessionId)
+                console.log('[SyncEngine:deleteSession]', {
+                    sessionId,
+                    agentStateCleared: true,
+                    cacheRefreshed: true,
+                    timestamp: Date.now()
+                })
+            } else {
+                console.error('[SyncEngine:deleteSession]', {
+                    sessionId,
+                    error: result.error,
+                    agentStateCleared: false,
+                    timestamp: Date.now()
+                })
+            }
+        }
         await this.sessionCache.deleteSession(sessionId)
     }
 

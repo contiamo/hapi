@@ -4,7 +4,7 @@ import { RemoteModeDisplay } from "@/ui/ink/RemoteModeDisplay";
 import { claudeRemote } from "./claudeRemote";
 import { PermissionHandler } from "./utils/permissionHandler";
 import { Future } from "@/utils/future";
-import { SDKAssistantMessage, SDKMessage, SDKUserMessage } from "./sdk";
+import { SDKAssistantMessage, SDKMessage, SDKSystemMessage, SDKUserMessage } from "./sdk";
 import { formatClaudeMessageForInk } from "@/ui/messageFormatterInk";
 import { logger } from "@/ui/logger";
 import { SDKToLogConverter } from "./utils/sdkToLogConverter";
@@ -133,6 +133,18 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                     });
                 }
             }
+
+            // When the SDK autonomously compacts the conversation history, clear all tool call
+            // state so stale completedRequests do not render as orphan tool cards in the UI.
+            if (message.type === 'system' && (message as SDKSystemMessage).subtype === 'microcompact_boundary') {
+                logger.debug('[remote]: microcompact_boundary detected — clearing tool call state');
+                session.client.updateAgentState((state) => ({
+                    ...state,
+                    requests: {},
+                    completedRequests: {},
+                }));
+            }
+
             formatClaudeMessageForInk(message, messageBuffer);
             permissionHandler.onMessage(message);
 
@@ -361,6 +373,14 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                         onSessionReset: () => {
                             logger.debug('[remote]: Session reset');
                             session.clearSessionId();
+                        },
+                        onCompact: () => {
+                            logger.debug('[remote]: /compact completed — clearing tool call state');
+                            session.client.updateAgentState((state) => ({
+                                ...state,
+                                requests: {},
+                                completedRequests: {},
+                            }));
                         },
                         onReady: () => {
                             if (!pending && session.queue.size() === 0) {

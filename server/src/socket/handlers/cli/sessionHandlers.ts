@@ -5,7 +5,6 @@ import type { ModelMode, PermissionMode } from '@hapi/protocol/types'
 import type { Store, StoredSession } from '../../../store'
 import type { SyncEvent } from '../../../sync/syncEngine'
 import { extractTodoWriteTodosFromMessageContent } from '../../../sync/todos'
-import { handleMessageHistoryModification } from '../../../sync/messageHistoryHandlers'
 import type { CliSocketWithData } from '../../socketTypes'
 
 type SessionAlivePayload = {
@@ -104,39 +103,16 @@ export function registerSessionHandlers(socket: CliSocketWithData, deps: Session
             content.data.subtype === 'microcompact_boundary'
 
         if (isMicrocompactBoundary) {
+            // Tool call state cleanup is handled by the CLI: it detects this same event in its
+            // onMessage callback and calls updateAgentState to clear completedRequests/requests.
+            // The CLI-driven approach avoids the race condition where a server-side null-set
+            // would be immediately overwritten by a buffered CLI updateAgentState call.
+            // See docs/planning/STRAY_TOOL_CALLS.md for details.
             console.log('[sessionHandlers:microcompact]', {
                 sessionId: sid,
                 contentType: isObject(content.data) ? content.data.type : 'unknown',
                 timestamp: Date.now()
             })
-
-            const result = handleMessageHistoryModification(
-                store,
-                sid,
-                session,
-                'microcompact'
-            )
-
-            if (result.success) {
-                // Emit session-updated event so frontends know to refresh
-                onWebappEvent?.({
-                    type: 'session-updated',
-                    sessionId: sid,
-                    data: { sid }
-                })
-                console.log('[sessionHandlers:microcompact]', {
-                    sessionId: sid,
-                    eventEmitted: 'session-updated',
-                    timestamp: Date.now()
-                })
-            } else {
-                console.error('[sessionHandlers:microcompact]', {
-                    sessionId: sid,
-                    error: result.error,
-                    eventEmitted: false,
-                    timestamp: Date.now()
-                })
-            }
         }
 
         const msg = store.messages.addMessage(sid, content, localId)

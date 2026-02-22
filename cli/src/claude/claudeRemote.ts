@@ -35,7 +35,8 @@ export async function claudeRemote(opts: {
     onThinkingChange?: (thinking: boolean) => void,
     onMessage: (message: SDKMessage) => void,
     onCompletionEvent?: (message: string) => void,
-    onSessionReset?: () => void
+    onSessionReset?: () => void,
+    onCompact?: () => void
 }) {
 
     // Check if session is valid
@@ -217,6 +218,9 @@ export async function claudeRemote(opts: {
                     if (opts.onCompletionEvent) {
                         opts.onCompletionEvent('Compaction completed');
                     }
+                    // Clear tool call state — the conversation history has been compacted,
+                    // so any completedRequests entries are now orphaned.
+                    opts.onCompact?.();
                     isCompactCommand = false;
                 }
 
