@@ -57,10 +57,6 @@ export const VirtualMessageList = forwardRef<VirtualMessageListHandle, VirtualMe
 
         const items = virtualizer.getVirtualItems()
 
-        if (messagesCount === 0) {
-            return null
-        }
-
         return (
             <div
                 style={{
