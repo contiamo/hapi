@@ -163,7 +163,8 @@ export async function claudeRemote(opts: {
     };
 
     // Push initial message
-    // Cast to SDKMessage — the partial user objects are valid on the wire even if they lack optional SDK fields
+    // SDKUserMessage requires metadata fields (parent_tool_use_id, session_id) in output format,
+    // but the subprocess only needs type+message when receiving user input over stream-json stdin.
     let messages = new PushableAsyncIterable<SDKMessage>();
     messages.push({
         type: 'user',

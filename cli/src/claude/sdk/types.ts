@@ -91,6 +91,7 @@ export interface SDKControlResponse {
         request_id: string
         subtype: 'success' | 'error'
         error?: string
+        response?: Record<string, unknown>
     }
 }
 
@@ -123,4 +124,4 @@ export interface QueryOptions {
     canUseTool?: import('@anthropic-ai/claude-agent-sdk').CanUseTool
 }
 
-export type QueryPrompt = string | AsyncIterable<import('@anthropic-ai/claude-agent-sdk').SDKMessage>
+export type QueryPrompt = string | AsyncIterable<import('@anthropic-ai/claude-agent-sdk').SDKUserMessage>
