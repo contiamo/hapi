@@ -9,10 +9,9 @@ import chalk from 'chalk'
 import { configuration } from '@/configuration'
 import { readSettings } from '@/persistence'
 import { checkIfRunnerRunningAndCleanupStaleState } from '@/runner/controlClient'
-import { findRunawayHappyProcesses, findAllHappyProcesses } from '@/runner/doctor'
+import { findAllHappyProcesses } from '@/runner/doctor'
 import { readRunnerState } from '@/persistence'
 import { existsSync, readdirSync, statSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { isBunCompiled, projectPath, runtimePath } from '@/projectPath'
 import packageJson from '../../package.json'
@@ -128,7 +127,7 @@ export async function runDoctorCommand(filter?: 'all' | 'runner'): Promise<void>
             // Hide cliApiToken in output for security
             const displaySettings = { ...settings, cliApiToken: settings.cliApiToken ? '***' : undefined };
             console.log(chalk.gray(JSON.stringify(displaySettings, null, 2)));
-        } catch (error) {
+        } catch {
             console.log(chalk.bold('\n📄 Settings:'));
             console.log(chalk.red('❌ Failed to read settings'));
             settings = {};
@@ -221,7 +220,7 @@ export async function runDoctorCommand(filter?: 'all' | 'runner'): Promise<void>
             console.log(chalk.bold('\n💡 Process Management'));
             console.log(chalk.gray('To clean up runaway processes: hapi doctor clean'));
         }
-    } catch (error) {
+    } catch {
         console.log(chalk.red('❌ Error checking runner status'));
     }
 

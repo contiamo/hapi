@@ -109,7 +109,7 @@ export class Query implements AsyncIterableIterator<SDKMessage> {
                         }
 
                         this.inputStream.enqueue(message)
-                    } catch (e) {
+                    } catch {
                         logger.debug(line)
                     }
                 }

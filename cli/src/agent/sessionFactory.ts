@@ -1,5 +1,4 @@
 import os from 'node:os'
-import { randomUUID } from 'node:crypto'
 import { resolve } from 'node:path'
 
 import { ApiClient } from '@/api/api'

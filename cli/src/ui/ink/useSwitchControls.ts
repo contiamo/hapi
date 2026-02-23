@@ -89,10 +89,14 @@ export function useSwitchControls(opts: {
         const keyName = readKeyString(key, 'name');
         const sequence = keySequence ?? input;
         const sequenceString = typeof sequence === 'string' ? sequence : '';
+        // oxlint-disable-next-line no-control-regex
+        const keyReleasePattern = /^\u001b\[[0-9;]*:3u$/;
         const isKeyRelease = sequenceString.length > 0
-            && /^\u001b\[[0-9;]*:3u$/.test(sequenceString);
+            && keyReleasePattern.test(sequenceString);
+        // oxlint-disable-next-line no-control-regex
+        const csiUPattern = /^\u001b\[(\d+)(?:;(\d+))?u$/;
         const csiUMatch = sequenceString.length > 0
-            ? sequenceString.match(/^\u001b\[(\d+)(?:;(\d+))?u$/)
+            ? sequenceString.match(csiUPattern)
             : null;
         const csiUCodepoint = csiUMatch ? Number(csiUMatch[1]) : null;
         const isCsiUSpace = csiUCodepoint === 32;

@@ -9,7 +9,7 @@ export function rpcError<T extends Record<string, unknown> = Record<string, unkn
     const payload = {
         success: false,
         error: message,
-        ...(extras ?? {})
+        ...extras
     }
 
     return payload as RpcErrorResponse & T

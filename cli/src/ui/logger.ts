@@ -199,7 +199,7 @@ class Logger {
           platform: process.platform
         })
       })
-    } catch (error) {
+    } catch {
       // Silently fail to avoid disrupting the session
     }
   }
