@@ -10,18 +10,16 @@ import { Stream } from './stream'
 import {
     type QueryOptions,
     type QueryPrompt,
-    type SDKMessage,
     type ControlResponseHandler,
     type SDKControlRequest,
     type ControlRequest,
     type SDKControlResponse,
-    type CanCallToolCallback,
     type CanUseToolControlRequest,
     type CanUseToolControlResponse,
     type ControlCancelRequest,
-    type PermissionResult,
     AbortError
 } from './types'
+import type { SDKMessage, PermissionResult, CanUseTool } from '@anthropic-ai/claude-agent-sdk'
 import { getDefaultClaudeCodePath, logDebug, streamToStdin } from './utils'
 import { withBunRuntimeEnv } from '@/utils/bunRuntime'
 import { killProcessByChildProcess } from '@/utils/process'
@@ -38,15 +36,15 @@ export class Query implements AsyncIterableIterator<SDKMessage> {
     private cancelControllers = new Map<string, AbortController>()
     private sdkMessages: AsyncIterableIterator<SDKMessage>
     private inputStream = new Stream<SDKMessage>()
-    private canCallTool?: CanCallToolCallback
+    private canUseTool?: CanUseTool
 
     constructor(
         private childStdin: Writable | null,
         private childStdout: NodeJS.ReadableStream,
         private processExitPromise: Promise<void>,
-        canCallTool?: CanCallToolCallback
+        canUseTool?: CanUseTool
     ) {
-        this.canCallTool = canCallTool
+        this.canUseTool = canUseTool
         this.readMessages()
         this.sdkMessages = this.readSdkMessages()
     }
@@ -229,14 +227,19 @@ export class Query implements AsyncIterableIterator<SDKMessage> {
      */
     private async processControlRequest(request: CanUseToolControlRequest, signal: AbortSignal): Promise<PermissionResult> {
         if (request.request.subtype === 'can_use_tool') {
-            if (!this.canCallTool) {
-                throw new Error('canCallTool callback is not provided.')
+            if (!this.canUseTool) {
+                throw new Error('canUseTool callback is not provided.')
             }
-            return this.canCallTool(request.request.tool_name, request.request.input, {
-                signal
+            return this.canUseTool(request.request.tool_name, request.request.input, {
+                signal,
+                suggestions: request.request.permission_suggestions,
+                blockedPath: request.request.blocked_path,
+                decisionReason: request.request.decision_reason,
+                toolUseID: request.request.tool_use_id,
+                agentID: request.request.agent_id,
             })
         }
-        
+
         throw new Error('Unsupported control request subtype: ' + request.request.subtype)
     }
 
@@ -277,9 +280,13 @@ export function query(config: {
             fallbackModel,
             settingsPath,
             strictMcpConfig,
-            canCallTool
+            canCallTool,
+        canUseTool: canUseToolOption,
         } = {}
     } = config
+
+    // Support both names; canUseTool takes precedence
+    const canUseTool = canUseToolOption ?? canCallTool
 
     // Set entrypoint if not already set
     if (!process.env.CLAUDE_CODE_ENTRYPOINT) {
@@ -294,9 +301,9 @@ export function query(config: {
     if (appendSystemPrompt) args.push('--append-system-prompt', stripNewlinesForWindowsShellArg(appendSystemPrompt))
     if (maxTurns) args.push('--max-turns', maxTurns.toString())
     if (model) args.push('--model', model)
-    if (canCallTool) {
+    if (canUseTool) {
         if (typeof prompt === 'string') {
-            throw new Error('canCallTool callback requires --input-format stream-json. Please set prompt as an AsyncIterable.')
+            throw new Error('canUseTool callback requires --input-format stream-json. Please set prompt as an AsyncIterable.')
         }
         args.push('--permission-prompt-tool', 'stdio')
     }
@@ -394,7 +401,7 @@ export function query(config: {
     })
 
     // Create query instance
-    const query = new Query(childStdin, child.stdout, processExitPromise, canCallTool)
+    const query = new Query(childStdin, child.stdout, processExitPromise, canUseTool)
 
     // Handle process errors
     child.on('error', (error) => {

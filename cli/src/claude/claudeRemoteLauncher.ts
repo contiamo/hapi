@@ -120,7 +120,7 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
 
         function onMessage(message: SDKMessage) {
             if (message.type === 'result') {
-                const result = message as import('./sdk').SDKResultMessage;
+                const result = message as import('./sdk').SDKResultSuccess;
                 if (
                     result.is_error &&
                     typeof result.result === 'string' &&
@@ -180,7 +180,7 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                         ...umessage,
                         message: {
                             ...umessage.message,
-                            content: umessage.message.content.map((c) => {
+                            content: umessage.message.content.map((c: any) => {
                                 if (c.type === 'tool_result' && c.tool_use_id && planModeToolCalls.has(c.tool_use_id!)) {
                                     if (c.content === PLAN_FAKE_REJECT) {
                                         logger.debug('[remote]: hack plan mode exit');

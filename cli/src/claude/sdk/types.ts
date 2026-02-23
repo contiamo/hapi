@@ -1,110 +1,52 @@
 /**
- * Type definitions for Claude Code SDK integration
- * Provides type-safe interfaces for all SDK communication
+ * Type definitions for Claude Code SDK integration.
+ * Re-exports authoritative types from @anthropic-ai/claude-agent-sdk,
+ * with local extensions where HAPI adds fields.
  */
 
-import type { Readable } from 'node:stream'
+export type {
+    SDKMessage,
+    SDKUserMessage,
+    SDKUserMessageReplay,
+    SDKAssistantMessage,
+    SDKSystemMessage,
+    SDKResultMessage,
+    SDKResultSuccess,
+    SDKResultError,
+    SDKPermissionDenial,
+    SDKCompactBoundaryMessage,
+    SDKStatusMessage,
+    SDKPartialAssistantMessage,
+    PermissionResult,
+    PermissionMode,
+    PermissionUpdate,
+    PermissionUpdateDestination,
+    PermissionRuleValue,
+    CanUseTool,
+} from '@anthropic-ai/claude-agent-sdk'
+
+export { AbortError } from '@anthropic-ai/claude-agent-sdk'
+
+// Re-export CanUseTool under the legacy name so existing callers keep working
+export type { CanUseTool as CanCallToolCallback } from '@anthropic-ai/claude-agent-sdk'
+
+import type { PermissionMode } from '@anthropic-ai/claude-agent-sdk'
 import type { ClaudePermissionMode } from '@hapi/protocol/types'
 
 /**
- * SDK message types
+ * Wire format of the permission control request sent from the CLI.
+ * Not exported by the SDK package (internal), so defined locally.
  */
-export interface SDKMessage {
-    type: string
-    [key: string]: unknown
-}
-
-export interface SDKUserMessage extends SDKMessage {
-    type: 'user'
-    parent_tool_use_id?: string
-    message: {
-        role: 'user'
-        content: string | Array<{
-            type: string
-            text?: string
-            tool_use_id?: string
-            content?: unknown
-            [key: string]: unknown
-        }>
-    }
-}
-
-export interface SDKAssistantMessage extends SDKMessage {
-    type: 'assistant'
-    parent_tool_use_id?: string
-    message: {
-        role: 'assistant'
-        content: Array<{
-            type: string
-            text?: string
-            id?: string
-            name?: string
-            input?: unknown
-            [key: string]: unknown
-        }>
-    }
-}
-
-export interface SDKSystemMessage extends SDKMessage {
-    type: 'system'
-    subtype: string
-    session_id?: string
-    model?: string
-    cwd?: string
-    tools?: string[]
-    slash_commands?: string[]
-}
-
-export interface SDKResultMessage extends SDKMessage {
-    type: 'result'
-    subtype: 'success' | 'error_max_turns' | 'error_during_execution'
-    result?: string
-    num_turns: number
-    usage?: {
-        input_tokens: number
-        output_tokens: number
-        cache_read_input_tokens?: number
-        cache_creation_input_tokens?: number
-    }
-    total_cost_usd: number
-    duration_ms: number
-    duration_api_ms: number
-    is_error: boolean
-    session_id: string
-}
-
-export interface SDKControlResponse extends SDKMessage {
-    type: 'control_response'
-    response: {
-        request_id: string
-        subtype: 'success' | 'error'
-        error?: string
-    }
-}
-
-export interface SDKLog extends SDKMessage {
-    type: 'log'
-    log: {
-        level: 'debug' | 'info' | 'warn' | 'error'
-        message: string
-    }
-}
-
-/**
- * Control request types
- */
-export interface ControlRequest {
-    subtype: string
-}
-
-export interface InterruptRequest extends ControlRequest {
-    subtype: 'interrupt'
-}
-
-export interface CanUseToolRequest extends ControlRequest {
+export interface CanUseToolRequest {
     subtype: 'can_use_tool'
     tool_name: string
-    input: unknown
+    input: Record<string, unknown>
+    permission_suggestions?: import('@anthropic-ai/claude-agent-sdk').PermissionUpdate[]
+    blocked_path?: string
+    decision_reason?: string
+    tool_use_id: string
+    agent_id?: string
+    description?: string
 }
 
 export interface CanUseToolControlRequest {
@@ -118,7 +60,7 @@ export interface CanUseToolControlResponse {
     response: {
         subtype: 'success' | 'error'
         request_id: string
-        response?: PermissionResult
+        response?: import('@anthropic-ai/claude-agent-sdk').PermissionResult
         error?: string
     }
 }
@@ -128,32 +70,35 @@ export interface ControlCancelRequest {
     request_id: string
 }
 
+/** Generic control request wrapper (non-permission subtypes). */
+export interface ControlRequest {
+    subtype: string
+}
+
+export interface InterruptRequest extends ControlRequest {
+    subtype: 'interrupt'
+}
+
 export interface SDKControlRequest {
     request_id: string
     type: 'control_request'
     request: ControlRequest
 }
 
-/**
- * Permission result type for tool calls
- */
-export type PermissionResult = {
-    behavior: 'allow'
-    updatedInput: Record<string, unknown>
-} | {
-    behavior: 'deny'
-    message: string
+export interface SDKControlResponse {
+    type: 'control_response'
+    response: {
+        request_id: string
+        subtype: 'success' | 'error'
+        error?: string
+    }
 }
 
-/**
- * Callback function for tool permission checks
- */
-export interface CanCallToolCallback {
-    (toolName: string, input: unknown, options: { signal: AbortSignal }): Promise<PermissionResult>
-}
+export type ControlResponseHandler = (response: SDKControlResponse['response']) => void
 
 /**
- * Query options
+ * Options accepted by the local query() wrapper.
+ * Uses PermissionMode from the SDK (which includes 'dontAsk').
  */
 export interface QueryOptions {
     abort?: AbortSignal
@@ -166,32 +111,16 @@ export interface QueryOptions {
     maxTurns?: number
     mcpServers?: Record<string, unknown>
     pathToClaudeCodeExecutable?: string
-    permissionMode?: ClaudePermissionMode
+    permissionMode?: ClaudePermissionMode | PermissionMode
     continue?: boolean
     resume?: string
     model?: string
     fallbackModel?: string
     settingsPath?: string
     strictMcpConfig?: boolean
-    canCallTool?: CanCallToolCallback
+    /** @deprecated Use canUseTool instead */
+    canCallTool?: import('@anthropic-ai/claude-agent-sdk').CanUseTool
+    canUseTool?: import('@anthropic-ai/claude-agent-sdk').CanUseTool
 }
 
-/**
- * Query prompt types
- */
-export type QueryPrompt = string | AsyncIterable<SDKMessage>
-
-/**
- * Control response handlers
- */
-export type ControlResponseHandler = (response: SDKControlResponse['response']) => void
-
-/**
- * Error types
- */
-export class AbortError extends Error {
-    constructor(message: string) {
-        super(message)
-        this.name = 'AbortError'
-    }
-}
+export type QueryPrompt = string | AsyncIterable<import('@anthropic-ai/claude-agent-sdk').SDKMessage>

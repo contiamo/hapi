@@ -49,6 +49,8 @@ export type PermissionRequest = {
     rawInput?: unknown;
     rawOutput?: unknown;
     options: PermissionOption[];
+    /** SDK-provided suggestions for "allow always" permission rules. */
+    permissionSuggestions?: import('@anthropic-ai/claude-agent-sdk').PermissionUpdate[];
 };
 
 export type PermissionResponse =

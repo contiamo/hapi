@@ -8,15 +8,37 @@ export { AbortError } from './types'
 export type {
     QueryOptions,
     QueryPrompt,
-    SDKMessage,
-    SDKUserMessage,
-    SDKAssistantMessage,
-    SDKSystemMessage,
-    SDKResultMessage,
-    SDKControlResponse,
     ControlRequest,
     InterruptRequest,
     SDKControlRequest,
-    CanCallToolCallback,
-    PermissionResult
+    SDKControlResponse,
+    ControlResponseHandler,
+    CanUseToolRequest,
+    CanUseToolControlRequest,
+    CanUseToolControlResponse,
+    ControlCancelRequest,
 } from './types'
+
+// Re-export SDK message types and permission types directly from the SDK package
+export type {
+    SDKMessage,
+    SDKUserMessage,
+    SDKUserMessageReplay,
+    SDKAssistantMessage,
+    SDKSystemMessage,
+    SDKResultMessage,
+    SDKResultSuccess,
+    SDKResultError,
+    SDKPermissionDenial,
+    SDKCompactBoundaryMessage,
+    SDKStatusMessage,
+    SDKPartialAssistantMessage,
+    PermissionResult,
+    PermissionMode,
+    PermissionUpdate,
+    PermissionUpdateDestination,
+    PermissionRuleValue,
+    CanUseTool,
+    // Legacy alias kept for callers that haven't migrated yet
+    CanUseTool as CanCallToolCallback,
+} from '@anthropic-ai/claude-agent-sdk'

@@ -1,5 +1,5 @@
 import { EnhancedMode, PermissionMode } from "./loop";
-import { query, type QueryOptions as Options, type SDKMessage, type SDKSystemMessage, AbortError, SDKUserMessage, SDKResultMessage } from '@/claude/sdk'
+import { query, type QueryOptions as Options, type SDKMessage, type SDKSystemMessage, AbortError, type SDKUserMessage, type SDKResultSuccess } from '@/claude/sdk'
 import { claudeCheckSession } from "./utils/claudeCheckSession";
 import { join } from 'node:path';
 import { parseSpecialCommand } from "@/parsers/specialCommands";
@@ -8,7 +8,7 @@ import { PushableAsyncIterable } from "@/utils/PushableAsyncIterable";
 import { getProjectPath } from "./utils/path";
 import { awaitFileExist } from "@/modules/watcher/awaitFileExist";
 import { systemPrompt } from "./utils/systemPrompt";
-import { PermissionResult } from "./sdk/types";
+import type { PermissionResult } from "@anthropic-ai/claude-agent-sdk";
 import { getHapiBlobsDir } from "@/constants/uploadPaths";
 import { rollbackSession, CORRUPTION_ERRORS } from "./utils/repairSession";
 
@@ -23,7 +23,7 @@ export async function claudeRemote(opts: {
     allowedTools: string[],
     hookSettingsPath: string,
     signal?: AbortSignal,
-    canCallTool: (toolName: string, input: unknown, mode: EnhancedMode, options: { signal: AbortSignal }) => Promise<PermissionResult>,
+    canCallTool: (toolName: string, input: Record<string, unknown>, mode: EnhancedMode, options: { signal: AbortSignal; suggestions?: import('@anthropic-ai/claude-agent-sdk').PermissionUpdate[]; blockedPath?: string; decisionReason?: string; toolUseID: string; agentID?: string }) => Promise<PermissionResult>,
 
     // Dynamic parameters
     nextMessage: () => Promise<{ message: string, mode: EnhancedMode } | null>,
@@ -143,7 +143,7 @@ export async function claudeRemote(opts: {
         appendSystemPrompt: initial.mode.appendSystemPrompt ? initial.mode.appendSystemPrompt + '\n\n' + systemPrompt : systemPrompt,
         allowedTools: initial.mode.allowedTools ? initial.mode.allowedTools.concat(opts.allowedTools) : opts.allowedTools,
         disallowedTools: initial.mode.disallowedTools,
-        canCallTool: (toolName: string, input: unknown, options: { signal: AbortSignal }) => opts.canCallTool(toolName, input, mode, options),
+        canUseTool: (toolName: string, input: Record<string, unknown>, options) => opts.canCallTool(toolName, input, mode, options),
         abort: opts.signal,
         pathToClaudeCodeExecutable: 'claude',
         settingsPath: opts.hookSettingsPath,
@@ -163,14 +163,15 @@ export async function claudeRemote(opts: {
     };
 
     // Push initial message
-    let messages = new PushableAsyncIterable<SDKUserMessage>();
+    // Cast to SDKMessage — the partial user objects are valid on the wire even if they lack optional SDK fields
+    let messages = new PushableAsyncIterable<SDKMessage>();
     messages.push({
         type: 'user',
         message: {
             role: 'user',
             content: initial.message,
         },
-    });
+    } as SDKMessage);
 
     // Start the loop
     const response = query({
@@ -226,7 +227,7 @@ export async function claudeRemote(opts: {
                 // If the session is corrupted, exit cleanly without calling nextMessage().
                 // Feeding another message into the same broken session would trigger
                 // the same 400 error again immediately.
-                const resultMsg = message as SDKResultMessage;
+                const resultMsg = message as SDKResultSuccess;
                 if (
                     resultMsg.is_error &&
                     typeof resultMsg.result === 'string' &&
@@ -244,7 +245,7 @@ export async function claudeRemote(opts: {
                     return;
                 }
                 mode = next.mode;
-                messages.push({ type: 'user', message: { role: 'user', content: next.message } });
+                messages.push({ type: 'user', message: { role: 'user', content: next.message } } as SDKMessage);
             }
 
             // Handle tool result

@@ -10,7 +10,6 @@ import type {
     SDKUserMessage,
     SDKAssistantMessage,
     SDKSystemMessage,
-    SDKResultMessage
 } from '@/claude/sdk'
 import type { RawJSONLines } from '@/claude/types'
 import type { ClaudePermissionMode } from '@hapi/protocol/types'
@@ -158,23 +157,31 @@ export class SDKToLogConverter {
             }
 
             case 'system': {
-                const systemMsg = sdkMessage as SDKSystemMessage
+                const subtype = (sdkMessage as { subtype?: string }).subtype
 
-                // System messages with subtype 'init' might update session ID
-                if (systemMsg.subtype === 'init' && systemMsg.session_id) {
-                    this.updateSessionId(systemMsg.session_id)
+                // status and compact_boundary subtypes are informational only — not logged
+                if (subtype === 'status' || subtype === 'compact_boundary') {
+                    break
                 }
 
-                // System messages are typically not sent to logs
-                // but we can convert them if needed
-                logMessage = {
-                    ...baseFields,
-                    type: 'system',
-                    subtype: systemMsg.subtype,
-                    model: systemMsg.model,
-                    tools: systemMsg.tools,
-                    // Include all other fields
-                    ...(systemMsg as any)
+                if (subtype === 'init') {
+                    const systemMsg = sdkMessage as SDKSystemMessage
+                    this.updateSessionId(systemMsg.session_id)
+                    logMessage = {
+                        ...baseFields,
+                        type: 'system',
+                        subtype: systemMsg.subtype,
+                        model: systemMsg.model,
+                        tools: systemMsg.tools,
+                        ...(systemMsg as any)
+                    }
+                } else {
+                    // Unknown system subtype — pass through
+                    logMessage = {
+                        ...baseFields,
+                        ...sdkMessage,
+                        type: 'system',
+                    } as any
                 }
                 break
             }

@@ -51,6 +51,7 @@
     "release-all": "bun run scripts/release-all.ts"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.50",
     "@hapi/protocol": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.25.1",
     "@types/cross-spawn": "^6.0.6",
