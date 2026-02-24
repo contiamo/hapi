@@ -26,6 +26,7 @@ export function SessionChat(props: {
     messages: DecryptedMessage[]
     messagesWarning: string | null
     hasMoreMessages: boolean
+    hasMoreBeforeBoundary: boolean
     isLoadingMessages: boolean
     isLoadingMoreMessages: boolean
     isSending: boolean
@@ -305,6 +306,7 @@ export function SessionChat(props: {
                             isLoadingMessages={props.isLoadingMessages}
                             messagesWarning={props.messagesWarning}
                             hasMoreMessages={props.hasMoreMessages}
+                            hasMoreBeforeBoundary={props.hasMoreBeforeBoundary}
                             isLoadingMoreMessages={props.isLoadingMoreMessages}
                             onLoadMore={props.onLoadMore}
                             pendingCount={props.pendingCount}

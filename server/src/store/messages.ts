@@ -75,19 +75,43 @@ export function getMessages(
     db: Database,
     sessionId: string,
     limit: number = 200,
-    beforeSeq?: number
+    beforeSeq?: number,
+    afterSeq?: number
 ): StoredMessage[] {
     const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.min(200, limit)) : 200
+    const hasBefore = beforeSeq !== undefined && beforeSeq !== null && Number.isFinite(beforeSeq)
+    const hasAfter = afterSeq !== undefined && afterSeq !== null && Number.isFinite(afterSeq)
 
-    const rows = (beforeSeq !== undefined && beforeSeq !== null && Number.isFinite(beforeSeq))
-        ? db.prepare(
+    let rows: DbMessageRow[]
+    if (hasBefore && hasAfter) {
+        rows = db.prepare(
+            'SELECT * FROM messages WHERE session_id = ? AND seq > ? AND seq < ? ORDER BY seq DESC LIMIT ?'
+        ).all(sessionId, afterSeq, beforeSeq, safeLimit) as DbMessageRow[]
+    } else if (hasBefore) {
+        rows = db.prepare(
             'SELECT * FROM messages WHERE session_id = ? AND seq < ? ORDER BY seq DESC LIMIT ?'
         ).all(sessionId, beforeSeq, safeLimit) as DbMessageRow[]
-        : db.prepare(
+    } else if (hasAfter) {
+        rows = db.prepare(
+            'SELECT * FROM messages WHERE session_id = ? AND seq > ? ORDER BY seq DESC LIMIT ?'
+        ).all(sessionId, afterSeq, safeLimit) as DbMessageRow[]
+    } else {
+        rows = db.prepare(
             'SELECT * FROM messages WHERE session_id = ? ORDER BY seq DESC LIMIT ?'
         ).all(sessionId, safeLimit) as DbMessageRow[]
+    }
 
     return rows.reverse().map(toStoredMessage)
+}
+
+// Returns true if messages exist strictly before `seq` (i.e. pre-boundary history).
+// Uses strict less-than so the boundary message itself (which has seq === afterSeq)
+// is not counted — it is excluded from the visible window by the `seq > afterSeq` filter.
+export function hasMessagesBeforeSeq(db: Database, sessionId: string, seq: number): boolean {
+    const row = db.prepare(
+        'SELECT 1 FROM messages WHERE session_id = ? AND seq < ? LIMIT 1'
+    ).get(sessionId, seq)
+    return row !== null
 }
 
 export function getMessagesAfter(

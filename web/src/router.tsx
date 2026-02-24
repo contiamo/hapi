@@ -203,6 +203,7 @@ function SessionPage() {
         isLoading: messagesLoading,
         isLoadingMore: messagesLoadingMore,
         hasMore: messagesHasMore,
+        hasMoreBeforeBoundary: messagesHasMoreBeforeBoundary,
         loadMore: loadMoreMessages,
         refetch: refetchMessages,
         pendingCount,
@@ -252,6 +253,7 @@ function SessionPage() {
             messages={messages}
             messagesWarning={messagesWarning}
             hasMoreMessages={messagesHasMore}
+            hasMoreBeforeBoundary={messagesHasMoreBeforeBoundary}
             isLoadingMessages={messagesLoading}
             isLoadingMoreMessages={messagesLoadingMore}
             isSending={isSending}

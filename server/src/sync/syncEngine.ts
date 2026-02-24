@@ -121,16 +121,22 @@ export class SyncEngine {
         return this.machineCache.getOnlineMachinesByNamespace(namespace)
     }
 
-    getMessagesPage(sessionId: string, options: { limit: number; beforeSeq: number | null }): {
+    getMessagesPage(sessionId: string, options: { limit: number; beforeSeq: number | null; includeAll?: boolean }): {
         messages: DecryptedMessage[]
         page: {
             limit: number
             beforeSeq: number | null
             nextBeforeSeq: number | null
             hasMore: boolean
+            hasMoreBeforeBoundary: boolean
         }
     } {
-        return this.messageService.getMessagesPage(sessionId, options)
+        let afterSeq: number | null = null
+        if (!options.includeAll) {
+            const session = this.store.sessions.getSession(sessionId)
+            afterSeq = session?.compactionBoundarySeq ?? null
+        }
+        return this.messageService.getMessagesPage(sessionId, { ...options, afterSeq })
     }
 
     getMessagesAfter(sessionId: string, options: { afterSeq: number; limit: number }): DecryptedMessage[] {
@@ -221,6 +227,7 @@ export class SyncEngine {
         })
 
         const count = this.store.messages.deleteAllMessages(sessionId)
+        this.store.sessions.clearCompactionBoundary(sessionId)
 
         console.log('[SyncEngine:clear]', {
             sessionId,
@@ -296,6 +303,38 @@ export class SyncEngine {
     async archiveSession(sessionId: string): Promise<void> {
         await this.rpcGateway.killSession(sessionId)
         this.handleSessionEnd({ sid: sessionId, time: Date.now() })
+
+        // Clear the compaction boundary so a resumed session starts fresh.
+        // Without this, a resumed session would silently hide all pre-archive messages.
+        this.store.sessions.clearCompactionBoundary(sessionId)
+
+        // Clear agentState to remove orphaned tool blocks and permissions
+        const session = this.store.sessions.getSession(sessionId)
+        if (session) {
+            const result = handleMessageHistoryModification(
+                this.store,
+                sessionId,
+                session,
+                'other' // Use 'other' as reason for archiving
+            )
+
+            if (result.success) {
+                this.sessionCache.refreshSession(sessionId)
+                console.log('[SyncEngine:archiveSession]', {
+                    sessionId,
+                    agentStateCleared: true,
+                    cacheRefreshed: true,
+                    timestamp: Date.now()
+                })
+            } else {
+                console.error('[SyncEngine:archiveSession]', {
+                    sessionId,
+                    error: result.error,
+                    agentStateCleared: false,
+                    timestamp: Date.now()
+                })
+            }
+        }
     }
 
     /**
@@ -602,6 +641,31 @@ export class SyncEngine {
     }
 
     async deleteSession(sessionId: string): Promise<void> {
+        // Clear agentState to remove orphaned tool blocks and permissions
+        const session = this.store.sessions.getSession(sessionId)
+        if (session) {
+            const result = handleMessageHistoryModification(
+                this.store,
+                sessionId,
+                session,
+                'other' // Use 'other' as reason for deletion
+            )
+
+            if (result.success) {
+                console.log('[SyncEngine:deleteSession]', {
+                    sessionId,
+                    agentStateCleared: true,
+                    timestamp: Date.now()
+                })
+            } else {
+                console.error('[SyncEngine:deleteSession]', {
+                    sessionId,
+                    error: result.error,
+                    agentStateCleared: false,
+                    timestamp: Date.now()
+                })
+            }
+        }
         await this.sessionCache.deleteSession(sessionId)
     }
 

@@ -9,6 +9,7 @@ export type MessageWindowState = {
     pending: DecryptedMessage[]
     pendingCount: number
     hasMore: boolean
+    hasMoreBeforeBoundary: boolean
     oldestSeq: number | null
     newestSeq: number | null
     isLoading: boolean
@@ -95,6 +96,7 @@ function createState(sessionId: string): InternalState {
         pendingVisibleCount: 0,
         pendingOverflowVisibleCount: 0,
         hasMore: false,
+        hasMoreBeforeBoundary: false,
         oldestSeq: null,
         newestSeq: null,
         isLoading: false,
@@ -163,6 +165,7 @@ function buildState(
         pendingVisibleCount?: number
         pendingOverflowVisibleCount?: number
         hasMore?: boolean
+        hasMoreBeforeBoundary?: boolean
         isLoading?: boolean
         isLoadingMore?: boolean
         warning?: string | null
@@ -196,6 +199,7 @@ function buildState(
         oldestSeq,
         newestSeq,
         hasMore: updates.hasMore !== undefined ? updates.hasMore : prev.hasMore,
+        hasMoreBeforeBoundary: updates.hasMoreBeforeBoundary !== undefined ? updates.hasMoreBeforeBoundary : prev.hasMoreBeforeBoundary,
         isLoading: updates.isLoading !== undefined ? updates.isLoading : prev.isLoading,
         isLoadingMore: updates.isLoadingMore !== undefined ? updates.isLoadingMore : prev.isLoadingMore,
         warning: updates.warning !== undefined ? updates.warning : prev.warning,
@@ -331,7 +335,8 @@ export async function fetchLatestMessages(api: ApiClient, sessionId: string): Pr
                 console.log('[fetchLatestMessages] atBottom=true path:', {
                     mergedCount: merged.length,
                     trimmedCount: trimmed.length,
-                    hasMore: response.page.hasMore
+                    hasMore: response.page.hasMore,
+                    hasMoreBeforeBoundary: response.page.hasMoreBeforeBoundary
                 })
                 return buildState(prev, {
                     messages: trimmed,
@@ -340,6 +345,7 @@ export async function fetchLatestMessages(api: ApiClient, sessionId: string): Pr
                     pendingVisibleCount: 0,
                     pendingOverflowVisibleCount: 0,
                     hasMore: response.page.hasMore,
+                    hasMoreBeforeBoundary: response.page.hasMoreBeforeBoundary,
                     isLoading: false,
                     warning: null,
                 })
@@ -365,22 +371,31 @@ export async function fetchLatestMessages(api: ApiClient, sessionId: string): Pr
 
 export async function fetchOlderMessages(api: ApiClient, sessionId: string): Promise<void> {
     const initial = getState(sessionId)
-    if (initial.isLoadingMore || !initial.hasMore) {
+    if (initial.isLoadingMore) {
         return
     }
-    if (initial.oldestSeq === null) {
+    // Allow fetching when there are more messages after the boundary, even if hasMore is false
+    const canFetch = initial.hasMore || initial.hasMoreBeforeBoundary
+    if (!canFetch || initial.oldestSeq === null) {
         return
     }
     updateState(sessionId, (prev) => buildState(prev, { isLoadingMore: true }))
 
     try {
-        const response = await api.getMessages(sessionId, { limit: PAGE_SIZE, beforeSeq: initial.oldestSeq })
+        // When we've exhausted post-boundary messages, cross the boundary with includeAll=true
+        const crossingBoundary = !initial.hasMore && initial.hasMoreBeforeBoundary
+        const response = await api.getMessages(sessionId, {
+            limit: PAGE_SIZE,
+            beforeSeq: initial.oldestSeq,
+            includeAll: crossingBoundary || undefined
+        })
         updateState(sessionId, (prev) => {
             const merged = mergeMessages(response.messages, prev.messages)
             const trimmed = trimVisible(merged, 'prepend')
             return buildState(prev, {
                 messages: trimmed,
                 hasMore: response.page.hasMore,
+                hasMoreBeforeBoundary: response.page.hasMoreBeforeBoundary,
                 isLoadingMore: false,
             })
         })

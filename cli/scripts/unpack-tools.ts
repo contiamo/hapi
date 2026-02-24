@@ -44,22 +44,21 @@ function areToolsUnpacked(toolsDir: string): boolean {
     return expectedFiles.every((file) => existsSync(file));
 }
 
-function unpackArchive(archivePath: string, destDir: string): void {
+async function unpackArchive(archivePath: string, destDir: string): Promise<void> {
     if (!existsSync(destDir)) {
         mkdirSync(destDir, { recursive: true });
     }
 
-    tar.extract({
+    await tar.extract({
         file: archivePath,
         cwd: destDir,
-        sync: true,
         gzip: true,
         preserveMode: true,
         preserveOwner: false
     });
 }
 
-export function unpackTools(): { success: true; alreadyUnpacked: boolean } {
+export async function unpackTools(): Promise<{ success: true; alreadyUnpacked: boolean }> {
     const platformDir = getPlatformDir();
     const toolsDir = getToolsDir();
     const archivesDir = join(toolsDir, 'archives');
@@ -85,7 +84,7 @@ export function unpackTools(): { success: true; alreadyUnpacked: boolean } {
         if (!existsSync(archivePath)) {
             throw new Error(`Archive not found: ${archivePath}`);
         }
-        unpackArchive(archivePath, unpackedPath);
+        await unpackArchive(archivePath, unpackedPath);
     }
 
     if (platform() !== 'win32') {
@@ -104,12 +103,13 @@ export function unpackTools(): { success: true; alreadyUnpacked: boolean } {
 }
 
 if (import.meta.main) {
-    try {
-        unpackTools();
-        process.exit(0);
-    } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        console.error('Failed to unpack tools:', message);
-        process.exit(1);
-    }
+    unpackTools()
+        .then(() => {
+            process.exit(0);
+        })
+        .catch((error) => {
+            const message = error instanceof Error ? error.message : String(error);
+            console.error('Failed to unpack tools:', message);
+            process.exit(1);
+        });
 }

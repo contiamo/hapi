@@ -201,13 +201,16 @@ export class ApiClient {
         return await this.request<SessionResponse>(`/api/sessions/${encodeURIComponent(sessionId)}`)
     }
 
-    async getMessages(sessionId: string, options: { beforeSeq?: number | null; limit?: number }): Promise<MessagesResponse> {
+    async getMessages(sessionId: string, options: { beforeSeq?: number | null; limit?: number; includeAll?: boolean }): Promise<MessagesResponse> {
         const params = new URLSearchParams()
         if (options.beforeSeq !== undefined && options.beforeSeq !== null) {
             params.set('beforeSeq', `${options.beforeSeq}`)
         }
         if (options.limit !== undefined && options.limit !== null) {
             params.set('limit', `${options.limit}`)
+        }
+        if (options.includeAll) {
+            params.set('includeAll', 'true')
         }
 
         const qs = params.toString()
@@ -216,7 +219,8 @@ export class ApiClient {
         const response = await this.request<MessagesResponse>(url)
         console.log('[ApiClient.getMessages] Response received:', {
             messageCount: response.messages.length,
-            hasMore: response.page.hasMore
+            hasMore: response.page.hasMore,
+            hasMoreBeforeBoundary: response.page.hasMoreBeforeBoundary
         })
         return response
     }

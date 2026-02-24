@@ -67,6 +67,7 @@ export function HappyThread(props: {
     isLoadingMessages: boolean
     messagesWarning: string | null
     hasMoreMessages: boolean
+    hasMoreBeforeBoundary: boolean
     isLoadingMoreMessages: boolean
     onLoadMore: () => Promise<unknown>
     pendingCount: number
@@ -94,6 +95,7 @@ export function HappyThread(props: {
     const loadStartedRef = useRef(false)
     const isLoadingMoreRef = useRef(props.isLoadingMoreMessages)
     const hasMoreMessagesRef = useRef(props.hasMoreMessages)
+    const hasMoreBeforeBoundaryRef = useRef(props.hasMoreBeforeBoundary)
     const isLoadingMessagesRef = useRef(props.isLoadingMessages)
     const onLoadMoreRef = useRef(props.onLoadMore)
     const handleLoadMoreRef = useRef<() => void>(() => {})
@@ -118,6 +120,9 @@ export function HappyThread(props: {
     useEffect(() => {
         hasMoreMessagesRef.current = props.hasMoreMessages
     }, [props.hasMoreMessages])
+    useEffect(() => {
+        hasMoreBeforeBoundaryRef.current = props.hasMoreBeforeBoundary
+    }, [props.hasMoreBeforeBoundary])
     useEffect(() => {
         isLoadingMessagesRef.current = props.isLoadingMessages
     }, [props.isLoadingMessages])
@@ -204,7 +209,7 @@ export function HappyThread(props: {
     }, [messagesCount])
 
     const handleLoadMore = useCallback(() => {
-        if (isLoadingMessagesRef.current || !hasMoreMessagesRef.current || isLoadingMoreRef.current || loadLockRef.current) {
+        if (isLoadingMessagesRef.current || (!hasMoreMessagesRef.current && !hasMoreBeforeBoundaryRef.current) || isLoadingMoreRef.current || loadLockRef.current) {
             return
         }
         const viewport = viewportRef.current
@@ -305,7 +310,7 @@ export function HappyThread(props: {
             </ThreadPrimitive.Viewport>
             {/* Load older / loading overlay — floats over the top of the scroll area.
                 Does not consume layout space so virtualizer item positions stay correct. */}
-            {props.hasMoreMessages && isNearTop ? (
+            {(props.hasMoreMessages || props.hasMoreBeforeBoundary) && isNearTop ? (
                 props.isLoadingMoreMessages ? (
                     <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 bg-[var(--app-button)] text-[var(--app-button-text)] px-3 py-1.5 rounded-full text-sm font-medium shadow-lg opacity-90">
                         <Spinner size="sm" label={null} className="text-current" />
