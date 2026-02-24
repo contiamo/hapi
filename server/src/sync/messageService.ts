@@ -56,9 +56,11 @@ export class MessageService {
         const hasMore = nextBeforeSeq !== null
             && this.store.messages.getMessages(sessionId, 1, nextBeforeSeq, afterSeq).length > 0
 
-        // True when a compaction boundary is active and messages exist before it
+        // True when a compaction boundary is active and messages exist strictly before it.
+        // Strictly-less-than matches the `seq > afterSeq` filter used on the visible window:
+        // the boundary message itself (seq === afterSeq) is invisible in both directions.
         const hasMoreBeforeBoundary = afterSeq !== undefined
-            && this.store.messages.hasMessagesAtOrBeforeSeq(sessionId, afterSeq)
+            && this.store.messages.hasMessagesBeforeSeq(sessionId, afterSeq)
 
         console.log('[MessageService.getMessagesPage] Returning:', {
             sessionId,

@@ -104,11 +104,14 @@ export function getMessages(
     return rows.reverse().map(toStoredMessage)
 }
 
-export function hasMessagesAtOrBeforeSeq(db: Database, sessionId: string, seq: number): boolean {
+// Returns true if messages exist strictly before `seq` (i.e. pre-boundary history).
+// Uses strict less-than so the boundary message itself (which has seq === afterSeq)
+// is not counted — it is excluded from the visible window by the `seq > afterSeq` filter.
+export function hasMessagesBeforeSeq(db: Database, sessionId: string, seq: number): boolean {
     const row = db.prepare(
-        'SELECT 1 FROM messages WHERE session_id = ? AND seq <= ? LIMIT 1'
+        'SELECT 1 FROM messages WHERE session_id = ? AND seq < ? LIMIT 1'
     ).get(sessionId, seq)
-    return row !== undefined
+    return row !== null
 }
 
 export function getMessagesAfter(

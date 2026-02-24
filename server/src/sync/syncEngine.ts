@@ -304,6 +304,10 @@ export class SyncEngine {
         await this.rpcGateway.killSession(sessionId)
         this.handleSessionEnd({ sid: sessionId, time: Date.now() })
 
+        // Clear the compaction boundary so a resumed session starts fresh.
+        // Without this, a resumed session would silently hide all pre-archive messages.
+        this.store.sessions.clearCompactionBoundary(sessionId)
+
         // Clear agentState to remove orphaned tool blocks and permissions
         const session = this.store.sessions.getSession(sessionId)
         if (session) {

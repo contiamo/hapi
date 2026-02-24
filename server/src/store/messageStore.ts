@@ -1,7 +1,7 @@
 import type { Database } from 'bun:sqlite'
 
 import type { StoredMessage } from './types'
-import { addMessage, deleteAllMessages, getMessages, getMessagesAfter, hasMessagesAtOrBeforeSeq } from './messages'
+import { addMessage, deleteAllMessages, getMessages, getMessagesAfter, hasMessagesBeforeSeq } from './messages'
 
 export class MessageStore {
     private readonly db: Database
@@ -22,8 +22,8 @@ export class MessageStore {
         return getMessagesAfter(this.db, sessionId, afterSeq, limit)
     }
 
-    hasMessagesAtOrBeforeSeq(sessionId: string, seq: number): boolean {
-        return hasMessagesAtOrBeforeSeq(this.db, sessionId, seq)
+    hasMessagesBeforeSeq(sessionId: string, seq: number): boolean {
+        return hasMessagesBeforeSeq(this.db, sessionId, seq)
     }
 
     deleteAllMessages(sessionId: string): number {

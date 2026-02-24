@@ -216,6 +216,38 @@ describe('sessionHandlers — microcompact_boundary records boundary and emits s
     })
 })
 
+describe('sessionHandlers — hasMoreBeforeBoundary edge cases', () => {
+    it('is false when the boundary message is the only message in the session', () => {
+        // The boundary message (seq=1) is stored; compactionBoundarySeq=1.
+        // hasMessagesBeforeSeq uses seq < 1, which matches nothing => false.
+        const { store, session, socket } = createHarness()
+
+        socket.trigger('message', microcompactMessage(session.id))
+
+        const updated = store.sessions.getSession(session.id)
+        const boundarySeq = updated?.compactionBoundarySeq
+        expect(boundarySeq).toBeNumber()
+
+        // hasMessagesBeforeSeq should return false — no messages before the boundary
+        expect(store.messages.hasMessagesBeforeSeq(session.id, boundarySeq!)).toBe(false)
+    })
+
+    it('is true when messages exist before the boundary', () => {
+        const { store, session, socket } = createHarness()
+
+        // Post a regular message first, then compact
+        socket.trigger('message', cliMessage(session.id, { type: 'output', data: { type: 'text', text: 'hello' } }))
+        socket.trigger('message', microcompactMessage(session.id))
+
+        const updated = store.sessions.getSession(session.id)
+        const boundarySeq = updated?.compactionBoundarySeq
+        expect(boundarySeq).toBeNumber()
+
+        // The earlier message has seq < boundarySeq
+        expect(store.messages.hasMessagesBeforeSeq(session.id, boundarySeq!)).toBe(true)
+    })
+})
+
 describe('sessionHandlers — malformed payloads are rejected gracefully', () => {
     it('ignores a message event with no sid field', () => {
         const { store, session, socket } = createHarness()
