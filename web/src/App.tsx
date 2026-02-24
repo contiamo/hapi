@@ -26,7 +26,7 @@ import { ToastContainer } from '@/components/ToastContainer'
 import { ToastProvider, useToast } from '@/lib/toast-context'
 import { SimpleToastProvider } from '@/lib/simple-toast'
 import { PWAUpdateProvider } from '@/lib/pwa-update-context'
-import type { SyncEvent } from '@/types/api'
+import type { SessionResponse, SyncEvent } from '@/types/api'
 
 type ToastEvent = Extract<SyncEvent, { type: 'toast' }>
 
@@ -213,11 +213,17 @@ function AppInner() {
     }, [api, queryClient, selectedSessionId, startSync, endSync])
 
     const handleSseEvent = useCallback((event: SyncEvent) => {
-        // When a session becomes active after resume, fetch its message history
+        // Only refetch messages when the current session transitions from inactive to active
+        // (e.g. after a resume). Keepalive session-updated events fire every ~10s even when
+        // nothing changed and must not trigger a refetch — they cause blank flashes.
         if (event.type === 'session-updated' && 'sessionId' in event && event.sessionId === selectedSessionId && api) {
-            void fetchLatestMessages(api, event.sessionId)
+            const cached = queryClient.getQueryData<SessionResponse>(queryKeys.session(selectedSessionId))
+            const wasInactive = !cached?.session?.active
+            if (wasInactive) {
+                void fetchLatestMessages(api, event.sessionId)
+            }
         }
-    }, [selectedSessionId, api])
+    }, [selectedSessionId, api, queryClient])
     const handleToast = useCallback((event: ToastEvent) => {
         addToast({
             title: event.data.title,
