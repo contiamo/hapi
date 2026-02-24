@@ -8,35 +8,44 @@ import { PushableAsyncIterable } from "@/utils/PushableAsyncIterable";
 import { getProjectPath } from "./utils/path";
 import { awaitFileExist } from "@/modules/watcher/awaitFileExist";
 import { systemPrompt } from "./utils/systemPrompt";
-import type { PermissionResult, PermissionUpdate } from "@anthropic-ai/claude-agent-sdk";
+import type { CanUseTool, PermissionResult } from "@anthropic-ai/claude-agent-sdk";
 import { getHapiBlobsDir } from "@/constants/uploadPaths";
 import { rollbackSession, CORRUPTION_ERRORS } from "./utils/repairSession";
 
-export async function claudeRemote(opts: {
+/** CanUseTool extended with HAPI's EnhancedMode context. */
+export type CanCallTool = (
+    toolName: string,
+    input: Record<string, unknown>,
+    mode: EnhancedMode,
+    options: Parameters<CanUseTool>[2]
+) => Promise<PermissionResult>;
 
+export interface ClaudeRemoteOptions {
     // Fixed parameters
-    sessionId: string | null,
-    path: string,
-    mcpServers?: Record<string, any>,
-    claudeEnvVars?: Record<string, string>,
-    claudeArgs?: string[],
-    allowedTools: string[],
-    hookSettingsPath: string,
-    signal?: AbortSignal,
-    canCallTool: (toolName: string, input: Record<string, unknown>, mode: EnhancedMode, options: { signal: AbortSignal; suggestions?: PermissionUpdate[]; blockedPath?: string; decisionReason?: string; toolUseID: string; agentID?: string }) => Promise<PermissionResult>,
+    sessionId: string | null;
+    path: string;
+    mcpServers?: Record<string, any>;
+    claudeEnvVars?: Record<string, string>;
+    claudeArgs?: string[];
+    allowedTools: string[];
+    hookSettingsPath: string;
+    signal?: AbortSignal;
+    canCallTool: CanCallTool;
 
     // Dynamic parameters
-    nextMessage: () => Promise<{ message: string, mode: EnhancedMode } | null>,
-    onReady: () => void,
-    isAborted: (toolCallId: string) => boolean,
+    nextMessage: () => Promise<{ message: string; mode: EnhancedMode } | null>;
+    onReady: () => void;
+    isAborted: (toolCallId: string) => boolean;
 
     // Callbacks
-    onSessionFound: (id: string) => void,
-    onThinkingChange?: (thinking: boolean) => void,
-    onMessage: (message: SDKMessage) => void,
-    onCompletionEvent?: (message: string) => void,
-    onSessionReset?: () => void
-}) {
+    onSessionFound: (id: string) => void;
+    onThinkingChange?: (thinking: boolean) => void;
+    onMessage: (message: SDKMessage) => void;
+    onCompletionEvent?: (message: string) => void;
+    onSessionReset?: () => void;
+}
+
+export async function claudeRemote(opts: ClaudeRemoteOptions) {
 
     // Check if session is valid
     let startFrom = opts.sessionId;
