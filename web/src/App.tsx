@@ -212,12 +212,12 @@ function AppInner() {
             })
     }, [api, queryClient, selectedSessionId, startSync, endSync])
 
-    const handleSseEvent = useCallback((event: SyncEvent) => {
-        // When a session becomes active after resume, fetch its message history
-        if (event.type === 'session-updated' && 'sessionId' in event && event.sessionId === selectedSessionId && api) {
-            void fetchLatestMessages(api, event.sessionId)
-        }
-    }, [selectedSessionId, api])
+    const handleSseEvent = useCallback((_event: SyncEvent) => {
+        // Messages are delivered in real-time via 'message-received' SSE events
+        // and ingested directly by the message-window-store (see useSSE).
+        // Catch-up after reconnection is handled by handleSseConnect.
+        // No per-event fetch needed here.
+    }, [])
     const handleToast = useCallback((event: ToastEvent) => {
         addToast({
             title: event.data.title,

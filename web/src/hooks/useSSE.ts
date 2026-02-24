@@ -107,6 +107,30 @@ export function useSSE(options: {
         const eventSource = new EventSource(url)
         eventSourceRef.current = eventSource
 
+        // Debounce session-updated invalidations to avoid flooding the
+        // server with refetches during active sessions (agent state changes
+        // fire many times per second).
+        const SESSION_UPDATE_DEBOUNCE_MS = 2_000
+        let sessionUpdateTimer: ReturnType<typeof setTimeout> | null = null
+        const pendingSessionIds = new Set<string>()
+
+        const flushSessionUpdates = () => {
+            sessionUpdateTimer = null
+            void queryClient.invalidateQueries({ queryKey: queryKeys.sessions })
+            for (const sid of pendingSessionIds) {
+                void queryClient.invalidateQueries({ queryKey: queryKeys.session(sid) })
+            }
+            pendingSessionIds.clear()
+        }
+
+        const debouncedSessionUpdate = (sessionId: string) => {
+            pendingSessionIds.add(sessionId)
+            if (sessionUpdateTimer !== null) {
+                clearTimeout(sessionUpdateTimer)
+            }
+            sessionUpdateTimer = setTimeout(flushSessionUpdates, SESSION_UPDATE_DEBOUNCE_MS)
+        }
+
         const handleSyncEvent = (event: SyncEvent) => {
             if (event.type === 'connection-changed') {
                 const data = event.data
@@ -132,14 +156,20 @@ export function useSSE(options: {
             }
 
             if (event.type === 'session-added' || event.type === 'session-updated' || event.type === 'session-removed') {
-                void queryClient.invalidateQueries({ queryKey: queryKeys.sessions })
-                if ('sessionId' in event) {
-                    if (event.type === 'session-removed') {
-                        void queryClient.removeQueries({ queryKey: queryKeys.session(event.sessionId) })
-                        clearMessageWindow(event.sessionId)
-                    } else {
+                if (event.type === 'session-removed' && 'sessionId' in event) {
+                    // Removals are immediate — no debounce
+                    void queryClient.invalidateQueries({ queryKey: queryKeys.sessions })
+                    void queryClient.removeQueries({ queryKey: queryKeys.session(event.sessionId) })
+                    clearMessageWindow(event.sessionId)
+                } else if (event.type === 'session-added') {
+                    // Additions are immediate so the new session appears promptly
+                    void queryClient.invalidateQueries({ queryKey: queryKeys.sessions })
+                    if ('sessionId' in event) {
                         void queryClient.invalidateQueries({ queryKey: queryKeys.session(event.sessionId) })
                     }
+                } else if ('sessionId' in event) {
+                    // session-updated: debounce to coalesce rapid-fire events
+                    debouncedSessionUpdate(event.sessionId)
                 }
             }
 
@@ -184,6 +214,9 @@ export function useSSE(options: {
 
         return () => {
             eventSource.close()
+            if (sessionUpdateTimer !== null) {
+                clearTimeout(sessionUpdateTimer)
+            }
             if (eventSourceRef.current === eventSource) {
                 eventSourceRef.current = null
             }
