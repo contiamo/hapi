@@ -36,6 +36,7 @@ vi.mock('./utils/repairSession', () => ({
 import { query } from '@/claude/sdk'
 import { claudeRemote } from './claudeRemote'
 import type { SDKMessage } from '@/claude/sdk'
+import type { Query } from '@/claude/sdk/query'
 
 // ---------------------------------------------------------------------------
 // Helpers to create async iterables that yield specific SDK messages
@@ -45,6 +46,11 @@ async function* makeStream(messages: SDKMessage[]): AsyncIterable<SDKMessage> {
     for (const msg of messages) {
         yield msg
     }
+}
+
+// Cast helper: query is fully mocked so we only need AsyncIterable at runtime.
+function asQuery(iter: AsyncIterable<SDKMessage>): Query {
+    return iter as unknown as Query
 }
 
 const systemInitMessage: SDKMessage = {
@@ -75,7 +81,7 @@ describe('claudeRemote — onCompact callback', () => {
     })
 
     it('does not call onCompact when no message is queued (nextMessage returns null immediately)', async () => {
-        vi.mocked(query).mockReturnValue(makeStream([resultSuccessMessage]))
+        vi.mocked(query).mockReturnValue(asQuery(makeStream([resultSuccessMessage])))
 
         const onCompact = vi.fn()
 
@@ -107,7 +113,7 @@ describe('claudeRemote — onCompact callback', () => {
         // from awaiting nextMessage(). So we mock nextMessage to return /compact first,
         // then null to end the loop.
 
-        vi.mocked(query).mockReturnValue(makeStream([resultSuccessMessage]))
+        vi.mocked(query).mockReturnValue(asQuery(makeStream([resultSuccessMessage])))
 
         const onCompact = vi.fn()
         const onReady = vi.fn()
@@ -138,7 +144,7 @@ describe('claudeRemote — onCompact callback', () => {
     })
 
     it('does not call onCompact for a normal (non-compact) message result', async () => {
-        vi.mocked(query).mockReturnValue(makeStream([resultSuccessMessage]))
+        vi.mocked(query).mockReturnValue(asQuery(makeStream([resultSuccessMessage])))
 
         const onCompact = vi.fn()
         const nextMessage = vi.fn()
@@ -175,7 +181,7 @@ describe('claudeRemote — microcompact_boundary forwarded to onMessage', () => 
         // tool call state. This test verifies that claudeRemote forwards the message
         // so the launcher can act on it.
         vi.mocked(query).mockReturnValue(
-            makeStream([microcompactBoundaryMessage, resultSuccessMessage])
+            asQuery(makeStream([microcompactBoundaryMessage, resultSuccessMessage]))
         )
 
         const receivedMessages: SDKMessage[] = []
@@ -208,7 +214,7 @@ describe('claudeRemote — microcompact_boundary forwarded to onMessage', () => 
         // microcompact_boundary triggers launcher-level cleanup via onMessage,
         // NOT via the onCompact callback (which is only for user-triggered /compact).
         vi.mocked(query).mockReturnValue(
-            makeStream([microcompactBoundaryMessage, resultSuccessMessage])
+            asQuery(makeStream([microcompactBoundaryMessage, resultSuccessMessage]))
         )
 
         const onCompact = vi.fn()
