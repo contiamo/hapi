@@ -641,11 +641,9 @@ export class SyncEngine {
             )
 
             if (result.success) {
-                this.sessionCache.refreshSession(sessionId)
                 console.log('[SyncEngine:deleteSession]', {
                     sessionId,
                     agentStateCleared: true,
-                    cacheRefreshed: true,
                     timestamp: Date.now()
                 })
             } else {

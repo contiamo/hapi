@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { Store } from '../../../store'
 import { registerSessionHandlers } from './sessionHandlers'
+import { handleMessageHistoryModification } from '../../../sync/messageHistoryHandlers'
 import type { SyncEvent } from '../../../sync/syncEngine'
 
 // ---------------------------------------------------------------------------
@@ -262,5 +263,38 @@ describe('sessionHandlers — malformed payloads are rejected gracefully', () =>
         }, (result) => { ackResult = result })
 
         expect((ackResult as { result: string }).result).toBe('error')
+    })
+})
+
+describe('handleMessageHistoryModification — agentState null-clear (store level)', () => {
+    // These tests cover the core operation that archiveSession and deleteSession
+    // rely on: handleMessageHistoryModification sets agentState to null in the store.
+
+    it('clears agentState to null when session has populated completedRequests', () => {
+        const store = createStore()
+        const session = createSession(store, {
+            requests: {},
+            completedRequests: {
+                'toolu_abc': { tool: 'Bash', status: 'approved' },
+                'toolu_xyz': { tool: 'Read', status: 'denied' },
+            }
+        })
+
+        const fresh = store.sessions.getSession(session.id)!
+        const result = handleMessageHistoryModification(store, session.id, fresh, 'other')
+
+        expect(result.success).toBe(true)
+        expect(store.sessions.getSession(session.id)!.agentState).toBeNull()
+    })
+
+    it('succeeds and leaves agentState null when it was already null', () => {
+        const store = createStore()
+        const session = createSession(store, null)
+
+        const fresh = store.sessions.getSession(session.id)!
+        const result = handleMessageHistoryModification(store, session.id, fresh, 'clear')
+
+        expect(result.success).toBe(true)
+        expect(store.sessions.getSession(session.id)!.agentState).toBeNull()
     })
 })

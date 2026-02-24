@@ -1,6 +1,6 @@
 import type { Store, StoredSession } from '../store'
 
-export type MessageHistoryModificationReason = 'clear' | 'microcompact' | 'other'
+export type MessageHistoryModificationReason = 'clear' | 'other'
 
 export type MessageHistoryModificationResult =
     | { success: true }
@@ -15,8 +15,7 @@ export type MessageHistoryModificationResult =
  *
  * This function should be called whenever:
  * - Messages are cleared via /clear command
- * - Microcompact event removes/compacts messages
- * - Any other operation that modifies message history
+ * - Any other operation that modifies message history (archive, delete)
  *
  * @param store - The data store
  * @param sessionId - ID of the session being modified
