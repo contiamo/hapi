@@ -30,7 +30,13 @@ export { AbortError } from '@anthropic-ai/claude-agent-sdk'
 // Re-export CanUseTool under the legacy name so existing callers keep working
 export type { CanUseTool as CanCallToolCallback } from '@anthropic-ai/claude-agent-sdk'
 
-import type { PermissionMode } from '@anthropic-ai/claude-agent-sdk'
+import type {
+    PermissionMode,
+    PermissionUpdate,
+    PermissionResult,
+    CanUseTool,
+    SDKUserMessage,
+} from '@anthropic-ai/claude-agent-sdk'
 import type { ClaudePermissionMode } from '@hapi/protocol/types'
 
 /**
@@ -41,7 +47,7 @@ export interface CanUseToolRequest {
     subtype: 'can_use_tool'
     tool_name: string
     input: Record<string, unknown>
-    permission_suggestions?: import('@anthropic-ai/claude-agent-sdk').PermissionUpdate[]
+    permission_suggestions?: PermissionUpdate[]
     blocked_path?: string
     decision_reason?: string
     tool_use_id: string
@@ -60,7 +66,7 @@ export interface CanUseToolControlResponse {
     response: {
         subtype: 'success' | 'error'
         request_id: string
-        response?: import('@anthropic-ai/claude-agent-sdk').PermissionResult
+        response?: PermissionResult
         error?: string
     }
 }
@@ -120,8 +126,8 @@ export interface QueryOptions {
     settingsPath?: string
     strictMcpConfig?: boolean
     /** @deprecated Use canUseTool instead */
-    canCallTool?: import('@anthropic-ai/claude-agent-sdk').CanUseTool
-    canUseTool?: import('@anthropic-ai/claude-agent-sdk').CanUseTool
+    canCallTool?: CanUseTool
+    canUseTool?: CanUseTool
 }
 
-export type QueryPrompt = string | AsyncIterable<import('@anthropic-ai/claude-agent-sdk').SDKUserMessage>
+export type QueryPrompt = string | AsyncIterable<SDKUserMessage>

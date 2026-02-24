@@ -8,7 +8,7 @@ import { PushableAsyncIterable } from "@/utils/PushableAsyncIterable";
 import { getProjectPath } from "./utils/path";
 import { awaitFileExist } from "@/modules/watcher/awaitFileExist";
 import { systemPrompt } from "./utils/systemPrompt";
-import type { PermissionResult } from "@anthropic-ai/claude-agent-sdk";
+import type { PermissionResult, PermissionUpdate } from "@anthropic-ai/claude-agent-sdk";
 import { getHapiBlobsDir } from "@/constants/uploadPaths";
 import { rollbackSession, CORRUPTION_ERRORS } from "./utils/repairSession";
 
@@ -23,7 +23,7 @@ export async function claudeRemote(opts: {
     allowedTools: string[],
     hookSettingsPath: string,
     signal?: AbortSignal,
-    canCallTool: (toolName: string, input: Record<string, unknown>, mode: EnhancedMode, options: { signal: AbortSignal; suggestions?: import('@anthropic-ai/claude-agent-sdk').PermissionUpdate[]; blockedPath?: string; decisionReason?: string; toolUseID: string; agentID?: string }) => Promise<PermissionResult>,
+    canCallTool: (toolName: string, input: Record<string, unknown>, mode: EnhancedMode, options: { signal: AbortSignal; suggestions?: PermissionUpdate[]; blockedPath?: string; decisionReason?: string; toolUseID: string; agentID?: string }) => Promise<PermissionResult>,
 
     // Dynamic parameters
     nextMessage: () => Promise<{ message: string, mode: EnhancedMode } | null>,

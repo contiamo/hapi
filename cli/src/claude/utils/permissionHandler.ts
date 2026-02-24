@@ -7,7 +7,7 @@
 
 import { logger } from "@/lib";
 import { SDKAssistantMessage, SDKMessage, SDKUserMessage } from "../sdk";
-import type { PermissionResult } from "@anthropic-ai/claude-agent-sdk";
+import type { PermissionResult, PermissionUpdate } from "@anthropic-ai/claude-agent-sdk";
 import { PLAN_FAKE_REJECT, PLAN_FAKE_RESTART } from "../sdk/prompts";
 import { Session } from "../session";
 import { deepEqual } from "@/utils/deepEqual";
@@ -205,7 +205,7 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
     /**
      * Creates the canCallTool callback for the SDK
      */
-    handleToolCall = async (toolName: string, input: Record<string, unknown>, mode: EnhancedMode, options: { signal: AbortSignal; suggestions?: import('@anthropic-ai/claude-agent-sdk').PermissionUpdate[]; blockedPath?: string; decisionReason?: string; toolUseID: string; agentID?: string }): Promise<PermissionResult> => {
+    handleToolCall = async (toolName: string, input: Record<string, unknown>, mode: EnhancedMode, options: { signal: AbortSignal; suggestions?: PermissionUpdate[]; blockedPath?: string; decisionReason?: string; toolUseID: string; agentID?: string }): Promise<PermissionResult> => {
         const isQuestionTool = isQuestionToolName(toolName);
 
         // Check if tool is explicitly allowed
