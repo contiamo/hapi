@@ -94,7 +94,6 @@ export function registerSessionHandlers(socket: CliSocketWithData, deps: Session
         }
         const session = sessionAccess.value
 
-        // Check for microcompact_boundary event BEFORE storing the message
         const isMicrocompactBoundary =
             isObject(content) &&
             content.type === 'output' &&
@@ -102,20 +101,19 @@ export function registerSessionHandlers(socket: CliSocketWithData, deps: Session
             content.data.type === 'system' &&
             content.data.subtype === 'microcompact_boundary'
 
+        const msg = store.messages.addMessage(sid, content, localId)
+
         if (isMicrocompactBoundary) {
-            // Tool call state cleanup is handled by the CLI: it detects this same event in its
-            // onMessage callback and calls updateAgentState to clear completedRequests/requests.
-            // The CLI-driven approach avoids the race condition where a server-side null-set
-            // would be immediately overwritten by a buffered CLI updateAgentState call.
-            // See docs/planning/STRAY_TOOL_CALLS.md for details.
+            // Record boundary seq so the UI can filter pre-compaction messages by default.
+            // Tool call state cleanup is CLI-driven (see STRAY_TOOL_CALLS.md).
+            store.sessions.updateCompactionBoundary(sid, msg.seq)
             console.log('[sessionHandlers:microcompact]', {
                 sessionId: sid,
-                contentType: isObject(content.data) ? content.data.type : 'unknown',
+                boundarySeq: msg.seq,
                 timestamp: Date.now()
             })
+            onWebappEvent?.({ type: 'session-updated', sessionId: sid, data: { sid } })
         }
-
-        const msg = store.messages.addMessage(sid, content, localId)
 
         const todos = extractTodoWriteTodosFromMessageContent(content)
         if (todos) {

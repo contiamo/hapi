@@ -2,6 +2,7 @@ import type { Database } from 'bun:sqlite'
 
 import type { StoredSession, VersionedUpdateResult } from './types'
 import {
+    clearCompactionBoundary,
     createSession,
     deleteSession,
     getOrCreateSession,
@@ -10,6 +11,7 @@ import {
     getSessions,
     getSessionsByNamespace,
     setSessionTodos,
+    updateCompactionBoundary,
     updateSessionAgentState,
     updateSessionMetadata
 } from './sessions'
@@ -77,5 +79,13 @@ export class SessionStore {
 
     deleteSession(id: string, namespace: string): boolean {
         return deleteSession(this.db, id, namespace)
+    }
+
+    updateCompactionBoundary(id: string, boundarySeq: number): boolean {
+        return updateCompactionBoundary(this.db, id, boundarySeq)
+    }
+
+    clearCompactionBoundary(id: string): boolean {
+        return clearCompactionBoundary(this.db, id)
     }
 }

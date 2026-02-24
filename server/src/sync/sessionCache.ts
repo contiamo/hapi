@@ -105,7 +105,8 @@ export class SessionCache {
             thinkingAt: existing?.thinkingAt ?? 0,
             todos,
             permissionMode: existing?.permissionMode,
-            modelMode: existing?.modelMode
+            modelMode: existing?.modelMode,
+            compactionBoundarySeq: stored.compactionBoundarySeq
         }
 
         this.sessions.set(sessionId, session)

@@ -160,7 +160,8 @@ export const SessionSchema = z.object({
     thinkingAt: z.number(),
     todos: TodosSchema.optional(),
     permissionMode: PermissionModeSchema.optional(),
-    modelMode: ModelModeSchema.optional()
+    modelMode: ModelModeSchema.optional(),
+    compactionBoundarySeq: z.number().nullable().optional()
 })
 
 export type Session = z.infer<typeof SessionSchema>

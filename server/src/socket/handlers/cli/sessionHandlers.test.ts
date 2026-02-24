@@ -194,14 +194,25 @@ describe('sessionHandlers — update-state (CLI clears tool call state after com
     })
 })
 
-describe('sessionHandlers — microcompact does not emit session-updated', () => {
-    it('does not emit a session-updated webapp event on microcompact_boundary', () => {
+describe('sessionHandlers — microcompact_boundary records boundary and emits session-updated', () => {
+    it('records compactionBoundarySeq on the session', () => {
+        const { store, session, socket } = createHarness()
+
+        socket.trigger('message', microcompactMessage(session.id))
+
+        const updated = store.sessions.getSession(session.id)
+        expect(updated?.compactionBoundarySeq).toBeNumber()
+        expect(updated?.compactionBoundarySeq).toBeGreaterThan(0)
+    })
+
+    it('emits a session-updated webapp event so clients reload session data', () => {
         const { session, socket, webappEvents } = createHarness()
 
         socket.trigger('message', microcompactMessage(session.id))
 
         const sessionUpdated = webappEvents.find((e) => e.type === 'session-updated')
-        expect(sessionUpdated).toBeUndefined()
+        expect(sessionUpdated).toBeDefined()
+        expect(sessionUpdated?.sessionId).toBe(session.id)
     })
 })
 

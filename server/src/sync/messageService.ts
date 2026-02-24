@@ -11,22 +11,25 @@ export class MessageService {
     ) {
     }
 
-    getMessagesPage(sessionId: string, options: { limit: number; beforeSeq: number | null }): {
+    getMessagesPage(sessionId: string, options: { limit: number; beforeSeq: number | null; afterSeq?: number | null }): {
         messages: DecryptedMessage[]
         page: {
             limit: number
             beforeSeq: number | null
             nextBeforeSeq: number | null
             hasMore: boolean
+            hasMoreBeforeBoundary: boolean
         }
     } {
         console.log('[MessageService.getMessagesPage] Fetching messages:', {
             sessionId,
             limit: options.limit,
-            beforeSeq: options.beforeSeq
+            beforeSeq: options.beforeSeq,
+            afterSeq: options.afterSeq
         })
 
-        const stored = this.store.messages.getMessages(sessionId, options.limit, options.beforeSeq ?? undefined)
+        const afterSeq = options.afterSeq ?? undefined
+        const stored = this.store.messages.getMessages(sessionId, options.limit, options.beforeSeq ?? undefined, afterSeq)
 
         console.log('[MessageService.getMessagesPage] Database returned:', {
             sessionId,
@@ -51,12 +54,17 @@ export class MessageService {
 
         const nextBeforeSeq = oldestSeq
         const hasMore = nextBeforeSeq !== null
-            && this.store.messages.getMessages(sessionId, 1, nextBeforeSeq).length > 0
+            && this.store.messages.getMessages(sessionId, 1, nextBeforeSeq, afterSeq).length > 0
+
+        // True when a compaction boundary is active and messages exist before it
+        const hasMoreBeforeBoundary = afterSeq !== undefined
+            && this.store.messages.hasMessagesAtOrBeforeSeq(sessionId, afterSeq)
 
         console.log('[MessageService.getMessagesPage] Returning:', {
             sessionId,
             messageCount: messages.length,
             hasMore,
+            hasMoreBeforeBoundary,
             nextBeforeSeq
         })
 
@@ -66,7 +74,8 @@ export class MessageService {
                 limit: options.limit,
                 beforeSeq: options.beforeSeq,
                 nextBeforeSeq,
-                hasMore
+                hasMore,
+                hasMoreBeforeBoundary
             }
         }
     }

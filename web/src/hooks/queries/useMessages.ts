@@ -18,6 +18,7 @@ const EMPTY_STATE: MessageWindowState = {
     pending: [],
     pendingCount: 0,
     hasMore: false,
+    hasMoreBeforeBoundary: false,
     oldestSeq: null,
     newestSeq: null,
     isLoading: false,
@@ -33,6 +34,7 @@ export function useMessages(api: ApiClient | null, sessionId: string | null): {
     isLoading: boolean
     isLoadingMore: boolean
     hasMore: boolean
+    hasMoreBeforeBoundary: boolean
     pendingCount: number
     messagesVersion: number
     loadMore: () => Promise<unknown>
@@ -77,9 +79,10 @@ export function useMessages(api: ApiClient | null, sessionId: string | null): {
 
     const loadMore = useCallback(async () => {
         if (!api || !sessionId) return
-        if (!state.hasMore || state.isLoadingMore) return
+        const canLoadMore = state.hasMore || state.hasMoreBeforeBoundary
+        if (!canLoadMore || state.isLoadingMore) return
         await fetchOlderMessages(api, sessionId)
-    }, [api, sessionId, state.hasMore, state.isLoadingMore])
+    }, [api, sessionId, state.hasMore, state.hasMoreBeforeBoundary, state.isLoadingMore])
 
     const refetch = useCallback(async () => {
         if (!api || !sessionId) return
@@ -105,6 +108,7 @@ export function useMessages(api: ApiClient | null, sessionId: string | null): {
         isLoading: state.isLoading,
         isLoadingMore: state.isLoadingMore,
         hasMore: state.hasMore,
+        hasMoreBeforeBoundary: state.hasMoreBeforeBoundary,
         pendingCount: state.pendingCount,
         messagesVersion: state.messagesVersion,
         loadMore,

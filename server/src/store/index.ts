@@ -25,7 +25,7 @@ export { PushStore } from './pushStore'
 export { SessionStore } from './sessionStore'
 export { UserStore } from './userStore'
 
-const SCHEMA_VERSION = 3
+const SCHEMA_VERSION = 4
 const REQUIRED_TABLES = [
     'sessions',
     'machines',
@@ -116,6 +116,11 @@ export class Store {
             version = 3
         }
 
+        if (version === 3 && SCHEMA_VERSION >= 4) {
+            this.migrateFromV3ToV4()
+            version = 4
+        }
+
         if (version !== SCHEMA_VERSION) {
             throw this.buildSchemaMismatchError(version)
         }
@@ -142,7 +147,8 @@ export class Store {
                 todos_updated_at INTEGER,
                 active INTEGER DEFAULT 0,
                 active_at INTEGER,
-                seq INTEGER DEFAULT 0
+                seq INTEGER DEFAULT 0,
+                compaction_boundary_seq INTEGER
             );
             CREATE INDEX IF NOT EXISTS idx_sessions_tag ON sessions(tag);
             CREATE INDEX IF NOT EXISTS idx_sessions_tag_namespace ON sessions(tag, namespace);
@@ -313,6 +319,18 @@ export class Store {
             this.db.exec('ROLLBACK')
             const message = error instanceof Error ? error.message : String(error)
             throw new Error(`SQLite schema migration v2->v3 failed: ${message}`)
+        }
+    }
+
+    private migrateFromV3ToV4(): void {
+        try {
+            this.db.exec('BEGIN')
+            this.db.exec('ALTER TABLE sessions ADD COLUMN compaction_boundary_seq INTEGER')
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v3->v4 failed: ${message}`)
         }
     }
 

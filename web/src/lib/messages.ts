@@ -106,6 +106,7 @@ export function upsertMessagesInCache(
                         beforeSeq: null,
                         nextBeforeSeq: null,
                         hasMore: false,
+                        hasMoreBeforeBoundary: false,
                     },
                 },
             ],

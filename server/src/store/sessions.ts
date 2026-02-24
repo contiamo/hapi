@@ -21,6 +21,7 @@ type DbSessionRow = {
     active: number
     active_at: number | null
     seq: number
+    compaction_boundary_seq: number | null
 }
 
 function toStoredSession(row: DbSessionRow): StoredSession {
@@ -39,7 +40,8 @@ function toStoredSession(row: DbSessionRow): StoredSession {
         todosUpdatedAt: row.todos_updated_at,
         active: row.active === 1,
         activeAt: row.active_at,
-        seq: row.seq
+        seq: row.seq,
+        compactionBoundarySeq: row.compaction_boundary_seq ?? null
     }
 }
 
@@ -301,5 +303,27 @@ export function deleteSession(db: Database, id: string, namespace: string): bool
     const result = db.prepare(
         'DELETE FROM sessions WHERE id = ? AND namespace = ?'
     ).run(id, namespace)
+    return result.changes > 0
+}
+
+export function updateCompactionBoundary(db: Database, id: string, boundarySeq: number): boolean {
+    const result = db.prepare(`
+        UPDATE sessions
+        SET compaction_boundary_seq = @boundary_seq,
+            updated_at = @updated_at,
+            seq = seq + 1
+        WHERE id = @id
+    `).run({ id, boundary_seq: boundarySeq, updated_at: Date.now() })
+    return result.changes > 0
+}
+
+export function clearCompactionBoundary(db: Database, id: string): boolean {
+    const result = db.prepare(`
+        UPDATE sessions
+        SET compaction_boundary_seq = NULL,
+            updated_at = @updated_at,
+            seq = seq + 1
+        WHERE id = @id
+    `).run({ id, updated_at: Date.now() })
     return result.changes > 0
 }

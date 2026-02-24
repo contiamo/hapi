@@ -121,16 +121,22 @@ export class SyncEngine {
         return this.machineCache.getOnlineMachinesByNamespace(namespace)
     }
 
-    getMessagesPage(sessionId: string, options: { limit: number; beforeSeq: number | null }): {
+    getMessagesPage(sessionId: string, options: { limit: number; beforeSeq: number | null; includeAll?: boolean }): {
         messages: DecryptedMessage[]
         page: {
             limit: number
             beforeSeq: number | null
             nextBeforeSeq: number | null
             hasMore: boolean
+            hasMoreBeforeBoundary: boolean
         }
     } {
-        return this.messageService.getMessagesPage(sessionId, options)
+        let afterSeq: number | null = null
+        if (!options.includeAll) {
+            const session = this.store.sessions.getSession(sessionId)
+            afterSeq = session?.compactionBoundarySeq ?? null
+        }
+        return this.messageService.getMessagesPage(sessionId, { ...options, afterSeq })
     }
 
     getMessagesAfter(sessionId: string, options: { afterSeq: number; limit: number }): DecryptedMessage[] {
@@ -221,6 +227,7 @@ export class SyncEngine {
         })
 
         const count = this.store.messages.deleteAllMessages(sessionId)
+        this.store.sessions.clearCompactionBoundary(sessionId)
 
         console.log('[SyncEngine:clear]', {
             sessionId,

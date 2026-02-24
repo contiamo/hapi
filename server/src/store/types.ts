@@ -14,6 +14,7 @@ export type StoredSession = {
     active: boolean
     activeAt: number | null
     seq: number
+    compactionBoundarySeq: number | null
 }
 
 export type StoredMachine = {
