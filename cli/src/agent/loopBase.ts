@@ -16,17 +16,11 @@ export interface LocalRemoteSessionOptions<TSession> extends LocalRemoteLoopOpti
 }
 
 export async function runLocalRemoteSession<TSession extends AgentSessionBase<any>>(opts: LocalRemoteSessionOptions<TSession>): Promise<void> {
-    if (opts.onSessionReady) {
-        opts.onSessionReady(opts.session);
+    const { onSessionReady, ...loopOpts } = opts;
+    if (onSessionReady) {
+        onSessionReady(opts.session);
     }
-
-    await runLocalRemoteLoop({
-        session: opts.session,
-        startingMode: opts.startingMode,
-        logTag: opts.logTag,
-        runLocal: opts.runLocal,
-        runRemote: opts.runRemote
-    });
+    await runLocalRemoteLoop(loopOpts);
 }
 
 export async function runLocalRemoteLoop<TSession extends AgentSessionBase<any>>(opts: LocalRemoteLoopOptions<TSession>): Promise<void> {

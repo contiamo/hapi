@@ -9,17 +9,20 @@ import { withBunRuntimeEnv } from "@/utils/bunRuntime";
 import { spawnWithAbort } from "@/utils/spawnWithAbort";
 import { getHapiBlobsDir } from "@/constants/uploadPaths";
 import { stripNewlinesForWindowsShellArg } from "@/utils/shellEscape";
+import type { McpServerConfig } from "@/claude/sdk";
 
-export async function claudeLocal(opts: {
-    abort: AbortSignal,
-    sessionId: string | null,
-    mcpServers?: Record<string, any>,
-    path: string,
-    claudeEnvVars?: Record<string, string>,
-    claudeArgs?: string[]
-    allowedTools?: string[]
-    hookSettingsPath: string
-}) {
+export interface ClaudeLocalOptions {
+    abort: AbortSignal;
+    sessionId: string | null;
+    mcpServers?: Record<string, McpServerConfig>;
+    path: string;
+    claudeEnvVars?: Record<string, string>;
+    claudeArgs?: string[];
+    allowedTools?: string[];
+    hookSettingsPath: string;
+}
+
+export async function claudeLocal(opts: ClaudeLocalOptions) {
 
     // Ensure project directory exists
     const projectDir = getProjectPath(opts.path);

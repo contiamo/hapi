@@ -41,4 +41,5 @@ export type {
     CanUseTool,
     // Legacy alias kept for callers that haven't migrated yet
     CanUseTool as CanCallToolCallback,
+    McpServerConfig,
 } from '@anthropic-ai/claude-agent-sdk'

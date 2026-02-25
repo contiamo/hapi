@@ -8,7 +8,7 @@ import { PushableAsyncIterable } from "@/utils/PushableAsyncIterable";
 import { getProjectPath } from "./utils/path";
 import { awaitFileExist } from "@/modules/watcher/awaitFileExist";
 import { systemPrompt } from "./utils/systemPrompt";
-import type { CanUseTool, PermissionResult } from "@anthropic-ai/claude-agent-sdk";
+import type { CanUseTool, McpServerConfig, PermissionResult } from "@anthropic-ai/claude-agent-sdk";
 import { getHapiBlobsDir } from "@/constants/uploadPaths";
 import { rollbackSession, CORRUPTION_ERRORS } from "./utils/repairSession";
 
@@ -24,7 +24,7 @@ export interface ClaudeRemoteOptions {
     // Fixed parameters
     sessionId: string | null;
     path: string;
-    mcpServers?: Record<string, any>;
+    mcpServers?: Record<string, McpServerConfig>;
     claudeEnvVars?: Record<string, string>;
     claudeArgs?: string[];
     allowedTools: string[];

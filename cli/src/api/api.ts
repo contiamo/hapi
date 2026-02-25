@@ -6,6 +6,18 @@ import { getAuthToken } from '@/api/auth'
 import { ApiMachineClient } from './apiMachine'
 import { ApiSessionClient } from './apiSession'
 
+export type GetOrCreateSessionOptions = {
+    id: string | null
+    metadata: Metadata
+    state: AgentState | null
+}
+
+export type GetOrCreateMachineOptions = {
+    machineId: string
+    metadata: MachineMetadata
+    runnerState?: RunnerState
+}
+
 export class ApiClient {
     static async create(): Promise<ApiClient> {
         return new ApiClient(getAuthToken())
@@ -13,11 +25,7 @@ export class ApiClient {
 
     private constructor(private readonly token: string) { }
 
-    async getOrCreateSession(opts: {
-        id: string | null
-        metadata: Metadata
-        state: AgentState | null
-    }): Promise<Session> {
+    async getOrCreateSession(opts: GetOrCreateSessionOptions): Promise<Session> {
         const response = await axios.post<CreateSessionResponse>(
             `${configuration.apiUrl}/cli/sessions`,
             {
@@ -73,11 +81,7 @@ export class ApiClient {
         }
     }
 
-    async getOrCreateMachine(opts: {
-        machineId: string
-        metadata: MachineMetadata
-        runnerState?: RunnerState
-    }): Promise<Machine> {
+    async getOrCreateMachine(opts: GetOrCreateMachineOptions): Promise<Machine> {
         const response = await axios.post<CreateMachineResponse>(
             `${configuration.apiUrl}/cli/machines`,
             {

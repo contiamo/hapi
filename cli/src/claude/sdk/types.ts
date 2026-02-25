@@ -23,6 +23,7 @@ export type {
     PermissionUpdateDestination,
     PermissionRuleValue,
     CanUseTool,
+    McpServerConfig,
 } from '@anthropic-ai/claude-agent-sdk'
 
 export { AbortError } from '@anthropic-ai/claude-agent-sdk'

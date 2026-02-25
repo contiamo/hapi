@@ -6,6 +6,7 @@ import type { SessionModelMode } from '@/api/types';
 import type { EnhancedMode } from './loop';
 import type { PermissionMode } from './loop';
 import type { LocalLaunchExitReason } from '@/agent/localLaunchPolicy';
+import type { McpServerConfig } from './sdk';
 
 type LocalLaunchFailure = {
     message: string;
@@ -20,7 +21,7 @@ export interface SessionOptions {
     sessionId: string | null;
     claudeEnvVars?: Record<string, string>;
     claudeArgs?: string[];
-    mcpServers: Record<string, any>;
+    mcpServers: Record<string, McpServerConfig>;
     messageQueue: MessageQueue2<EnhancedMode>;
     onModeChange: (mode: 'local' | 'remote') => void;
     allowedTools?: string[];
