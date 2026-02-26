@@ -8,6 +8,7 @@ import { claudeRemoteLauncher } from "./claudeRemoteLauncher"
 import { ApiClient } from "@/lib"
 import type { SessionModelMode } from "@/api/types"
 import type { ClaudePermissionMode } from "@hapi/protocol/types"
+import type { McpServerConfig } from "@/claude/sdk"
 
 export type PermissionMode = ClaudePermissionMode;
 
@@ -28,7 +29,7 @@ interface LoopOptions {
     startingMode?: 'local' | 'remote'
     startedBy?: 'runner' | 'terminal'
     onModeChange: (mode: 'local' | 'remote') => void
-    mcpServers: Record<string, any>
+    mcpServers: Record<string, McpServerConfig>
     session: ApiSessionClient
     api: ApiClient,
     claudeEnvVars?: Record<string, string>

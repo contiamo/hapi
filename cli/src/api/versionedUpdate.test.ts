@@ -25,7 +25,7 @@ const baseOptions = (
     invalidResponseMessage: 'Invalid update-metadata response',
     errorMessage: 'Metadata update failed',
     versionMismatchMessage: 'Metadata version mismatch',
-    ...(overrides ?? {})
+    ...overrides
 });
 
 describe('applyVersionedAck', () => {

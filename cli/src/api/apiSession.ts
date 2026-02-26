@@ -387,7 +387,7 @@ export class ApiSessionClient extends EventEmitter {
             },
             meta: {
                 sentFrom: 'cli',
-                ...(meta ?? {})
+                ...meta
             }
         }
 
@@ -451,7 +451,7 @@ export class ApiSessionClient extends EventEmitter {
             time: Date.now(),
             thinking,
             mode,
-            ...(runtime ?? {})
+            ...runtime
         })
     }
 

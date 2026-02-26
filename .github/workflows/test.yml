@@ -24,6 +24,7 @@ jobs:
           bun run scripts/get-version.ts --ts > server/src/version.generated.ts
           bun run scripts/get-version.ts --ts > cli/src/version.generated.ts
       - run: bun typecheck
+      - run: bun run lint
       - name: Create integration test env
         run: |
           {

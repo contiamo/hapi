@@ -1,3 +1,5 @@
+import type { PermissionUpdate } from '@anthropic-ai/claude-agent-sdk'
+
 export type McpEnvVar = {
     name: string;
     value: string;
@@ -49,6 +51,8 @@ export type PermissionRequest = {
     rawInput?: unknown;
     rawOutput?: unknown;
     options: PermissionOption[];
+    /** SDK-provided suggestions for "allow always" permission rules. */
+    permissionSuggestions?: PermissionUpdate[];
 };
 
 export type PermissionResponse =

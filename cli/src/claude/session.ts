@@ -6,11 +6,32 @@ import type { SessionModelMode } from '@/api/types';
 import type { EnhancedMode } from './loop';
 import type { PermissionMode } from './loop';
 import type { LocalLaunchExitReason } from '@/agent/localLaunchPolicy';
+import type { McpServerConfig } from './sdk';
 
 type LocalLaunchFailure = {
     message: string;
     exitReason: LocalLaunchExitReason;
 };
+
+export interface SessionOptions {
+    api: ApiClient;
+    client: ApiSessionClient;
+    path: string;
+    logPath: string;
+    sessionId: string | null;
+    claudeEnvVars?: Record<string, string>;
+    claudeArgs?: string[];
+    mcpServers: Record<string, McpServerConfig>;
+    messageQueue: MessageQueue2<EnhancedMode>;
+    onModeChange: (mode: 'local' | 'remote') => void;
+    allowedTools?: string[];
+    mode?: 'local' | 'remote';
+    startedBy: 'runner' | 'terminal';
+    startingMode: 'local' | 'remote';
+    hookSettingsPath: string;
+    permissionMode?: PermissionMode;
+    modelMode?: SessionModelMode;
+}
 
 export class Session extends AgentSessionBase<EnhancedMode> {
     readonly claudeEnvVars?: Record<string, string>;
@@ -22,25 +43,7 @@ export class Session extends AgentSessionBase<EnhancedMode> {
     readonly startingMode: 'local' | 'remote';
     localLaunchFailure: LocalLaunchFailure | null = null;
 
-    constructor(opts: {
-        api: ApiClient;
-        client: ApiSessionClient;
-        path: string;
-        logPath: string;
-        sessionId: string | null;
-        claudeEnvVars?: Record<string, string>;
-        claudeArgs?: string[];
-        mcpServers: Record<string, any>;
-        messageQueue: MessageQueue2<EnhancedMode>;
-        onModeChange: (mode: 'local' | 'remote') => void;
-        allowedTools?: string[];
-        mode?: 'local' | 'remote';
-        startedBy: 'runner' | 'terminal';
-        startingMode: 'local' | 'remote';
-        hookSettingsPath: string;
-        permissionMode?: PermissionMode;
-        modelMode?: SessionModelMode;
-    }) {
+    constructor(opts: SessionOptions) {
         super({
             api: opts.api,
             client: opts.client,

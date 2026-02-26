@@ -35,6 +35,7 @@
   "scripts": {
     "postinstall": "node -e \"try{require('fs').chmodSync(require('path').join(__dirname,'bin','hapi.cjs'),0o755)}catch(e){}\"",
     "typecheck": "tsc --noEmit",
+    "lint": "oxlint src/",
     "build:exe": "bun run scripts/build-executable.ts",
     "build:exe:all": "bun run scripts/build-executable.ts --all",
     "build:exe:allinone": "bun run scripts/build-executable.ts --with-web-assets",
@@ -51,6 +52,7 @@
     "release-all": "bun run scripts/release-all.ts"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.50",
     "@hapi/protocol": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.25.1",
     "@types/cross-spawn": "^6.0.6",
@@ -73,6 +75,7 @@
     "@types/node": ">=25",
     "bun-types": "^1.3.5",
     "dotenv": "^17.2.3",
+    "oxlint": "^1.50.0",
     "typescript": "^5",
     "vitest": "^4.0.16"
   },

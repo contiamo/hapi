@@ -7,11 +7,10 @@
 
 import { logger } from "@/lib";
 import { SDKAssistantMessage, SDKMessage, SDKUserMessage } from "../sdk";
-import { PermissionResult } from "../sdk/types";
+import type { CanUseTool, PermissionResult } from "@anthropic-ai/claude-agent-sdk";
 import { PLAN_FAKE_REJECT, PLAN_FAKE_RESTART } from "../sdk/prompts";
 import { Session } from "../session";
 import { deepEqual } from "@/utils/deepEqual";
-import { getToolName } from "./getToolName";
 import { EnhancedMode, PermissionMode } from "../loop";
 import { getToolDescriptor } from "./getToolDescriptor";
 import { delay } from "@/utils/time";
@@ -44,60 +43,6 @@ function isRequestUserInputToolName(toolName: string): boolean {
 
 function isQuestionToolName(toolName: string): boolean {
     return isAskUserQuestionToolName(toolName) || isRequestUserInputToolName(toolName);
-}
-
-function formatAskUserQuestionAnswers(answers: Record<string, string[]> | Record<string, { answers: string[] }>, input: unknown): string {
-    // Normalize nested format to flat format for display
-    const flatAnswers: Record<string, string[]> = {};
-    for (const [key, value] of Object.entries(answers)) {
-        if (Array.isArray(value)) {
-            flatAnswers[key] = value;
-        } else if (value && typeof value === 'object' && 'answers' in value) {
-            flatAnswers[key] = value.answers;
-        }
-    }
-
-    const questions = (() => {
-        if (!isObject(input)) return null;
-        const raw = input.questions;
-        if (!Array.isArray(raw)) return null;
-        return raw.filter((q) => isObject(q));
-    })();
-
-    const keys = Object.keys(flatAnswers).sort((a, b) => {
-        const aNum = Number.parseInt(a, 10);
-        const bNum = Number.parseInt(b, 10);
-        if (Number.isFinite(aNum) && Number.isFinite(bNum)) return aNum - bNum;
-        if (Number.isFinite(aNum)) return -1;
-        if (Number.isFinite(bNum)) return 1;
-        return a.localeCompare(b);
-    });
-
-    const lines = keys.map((key) => {
-        const idx = Number.parseInt(key, 10);
-        const q = questions && Number.isFinite(idx) ? questions[idx] : null;
-        const header = q && typeof q.header === 'string' && q.header.trim().length > 0
-            ? q.header.trim()
-            : Number.isFinite(idx)
-                ? `Question ${idx + 1}`
-                : `Question ${key}`;
-        const value = flatAnswers[key] ?? [];
-        const joined = value.map((v) => String(v)).filter((v) => v.trim().length > 0).join(', ');
-        return `${header}: ${joined || '(no answer)'}`;
-    });
-
-    const rawJson = (() => {
-        try {
-            return JSON.stringify(answers);
-        } catch {
-            return null;
-        }
-    })();
-
-    const body = lines.length > 0 ? lines.join('\n') : '(no answers)';
-    return rawJson
-        ? `User answered:\n${body}\n\nRaw answers JSON:\n${rawJson}`
-        : `User answered:\n${body}`;
 }
 
 function buildAskUserQuestionUpdatedInput(input: unknown, answers: Record<string, string[]> | Record<string, { answers: string[] }>): Record<string, unknown> {
@@ -250,7 +195,7 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
 
         // Handle default case for all other tools
         const result: PermissionResult = response.approved
-            ? { behavior: 'allow', updatedInput: (pending.input as Record<string, unknown>) || {} }
+            ? { behavior: 'allow', updatedInput: (pending.input as Record<string, unknown>) ?? {} }
             : { behavior: 'deny', message: response.reason || `The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed.` };
 
         pending.resolve(result);
@@ -260,7 +205,7 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
     /**
      * Creates the canCallTool callback for the SDK
      */
-    handleToolCall = async (toolName: string, input: unknown, mode: EnhancedMode, options: { signal: AbortSignal }): Promise<PermissionResult> => {
+    handleToolCall = async (toolName: string, input: Record<string, unknown>, mode: EnhancedMode, options: Parameters<CanUseTool>[2]): Promise<PermissionResult> => {
         const isQuestionTool = isQuestionToolName(toolName);
 
         // Check if tool is explicitly allowed
@@ -269,17 +214,17 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
             if (inputObj?.command) {
                 // Check literal matches
                 if (this.allowedBashLiterals.has(inputObj.command)) {
-                    return { behavior: 'allow', updatedInput: input as Record<string, unknown> };
+                    return { behavior: 'allow', updatedInput: input };
                 }
                 // Check prefix matches
                 for (const prefix of this.allowedBashPrefixes) {
                     if (inputObj.command.startsWith(prefix)) {
-                        return { behavior: 'allow', updatedInput: input as Record<string, unknown> };
+                        return { behavior: 'allow', updatedInput: input };
                     }
                 }
             }
         } else if (!isQuestionTool && this.allowedTools.has(toolName)) {
-            return { behavior: 'allow', updatedInput: input as Record<string, unknown> };
+            return { behavior: 'allow', updatedInput: input };
         }
 
         // Calculate descriptor
@@ -290,11 +235,11 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
         //
 
         if (!isQuestionTool && this.permissionMode === 'bypassPermissions') {
-            return { behavior: 'allow', updatedInput: input as Record<string, unknown> };
+            return { behavior: 'allow', updatedInput: input };
         }
 
         if (!isQuestionTool && this.permissionMode === 'acceptEdits' && descriptor.edit) {
-            return { behavior: 'allow', updatedInput: input as Record<string, unknown> };
+            return { behavior: 'allow', updatedInput: input };
         }
 
         //
@@ -447,6 +392,38 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
 
         // Tool call is not aborted
         return false;
+    }
+
+    /**
+     * Cancels all pending requests with interrupt:true so the agent loop halts.
+     * Use when the user explicitly aborts the session.
+     */
+    cancelPendingWithInterrupt(reason: string): void {
+        for (const [_, pending] of this.pendingRequests.entries()) {
+            pending.resolve({ behavior: 'deny', message: reason, interrupt: true });
+        }
+        this.pendingRequests.clear();
+
+        this.client.updateAgentState((currentState) => {
+            const pendingRequests = currentState.requests || {};
+            const completedRequests = { ...currentState.completedRequests };
+
+            for (const [id, request] of Object.entries(pendingRequests)) {
+                completedRequests[id] = {
+                    ...request,
+                    completedAt: Date.now(),
+                    status: 'canceled',
+                    reason,
+                    decision: 'abort' as const
+                };
+            }
+
+            return {
+                ...currentState,
+                requests: {},
+                completedRequests
+            };
+        });
     }
 
     /**

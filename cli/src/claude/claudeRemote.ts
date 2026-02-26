@@ -1,5 +1,5 @@
-import { EnhancedMode, PermissionMode } from "./loop";
-import { query, type QueryOptions as Options, type SDKMessage, type SDKSystemMessage, AbortError, SDKUserMessage, SDKResultMessage } from '@/claude/sdk'
+import { EnhancedMode } from "./loop";
+import { query, type QueryOptions as Options, type SDKMessage, type SDKSystemMessage, AbortError, type SDKUserMessage, type SDKResultSuccess } from '@/claude/sdk'
 import { claudeCheckSession } from "./utils/claudeCheckSession";
 import { join } from 'node:path';
 import { parseSpecialCommand } from "@/parsers/specialCommands";
@@ -8,35 +8,44 @@ import { PushableAsyncIterable } from "@/utils/PushableAsyncIterable";
 import { getProjectPath } from "./utils/path";
 import { awaitFileExist } from "@/modules/watcher/awaitFileExist";
 import { systemPrompt } from "./utils/systemPrompt";
-import { PermissionResult } from "./sdk/types";
+import type { CanUseTool, McpServerConfig, PermissionResult } from "@anthropic-ai/claude-agent-sdk";
 import { getHapiBlobsDir } from "@/constants/uploadPaths";
 import { rollbackSession, CORRUPTION_ERRORS } from "./utils/repairSession";
 
-export async function claudeRemote(opts: {
+/** CanUseTool extended with HAPI's EnhancedMode context. */
+export type CanCallTool = (
+    toolName: string,
+    input: Record<string, unknown>,
+    mode: EnhancedMode,
+    options: Parameters<CanUseTool>[2]
+) => Promise<PermissionResult>;
 
+export interface ClaudeRemoteOptions {
     // Fixed parameters
-    sessionId: string | null,
-    path: string,
-    mcpServers?: Record<string, any>,
-    claudeEnvVars?: Record<string, string>,
-    claudeArgs?: string[],
-    allowedTools: string[],
-    hookSettingsPath: string,
-    signal?: AbortSignal,
-    canCallTool: (toolName: string, input: unknown, mode: EnhancedMode, options: { signal: AbortSignal }) => Promise<PermissionResult>,
+    sessionId: string | null;
+    path: string;
+    mcpServers?: Record<string, McpServerConfig>;
+    claudeEnvVars?: Record<string, string>;
+    claudeArgs?: string[];
+    allowedTools: string[];
+    hookSettingsPath: string;
+    signal?: AbortSignal;
+    canCallTool: CanCallTool;
 
     // Dynamic parameters
-    nextMessage: () => Promise<{ message: string, mode: EnhancedMode } | null>,
-    onReady: () => void,
-    isAborted: (toolCallId: string) => boolean,
+    nextMessage: () => Promise<{ message: string; mode: EnhancedMode } | null>;
+    onReady: () => void;
+    isAborted: (toolCallId: string) => boolean;
 
     // Callbacks
-    onSessionFound: (id: string) => void,
-    onThinkingChange?: (thinking: boolean) => void,
-    onMessage: (message: SDKMessage) => void,
-    onCompletionEvent?: (message: string) => void,
-    onSessionReset?: () => void
-}) {
+    onSessionFound: (id: string) => void;
+    onThinkingChange?: (thinking: boolean) => void;
+    onMessage: (message: SDKMessage) => void;
+    onCompletionEvent?: (message: string) => void;
+    onSessionReset?: () => void;
+}
+
+export async function claudeRemote(opts: ClaudeRemoteOptions) {
 
     // Check if session is valid
     let startFrom = opts.sessionId;
@@ -143,7 +152,7 @@ export async function claudeRemote(opts: {
         appendSystemPrompt: initial.mode.appendSystemPrompt ? initial.mode.appendSystemPrompt + '\n\n' + systemPrompt : systemPrompt,
         allowedTools: initial.mode.allowedTools ? initial.mode.allowedTools.concat(opts.allowedTools) : opts.allowedTools,
         disallowedTools: initial.mode.disallowedTools,
-        canCallTool: (toolName: string, input: unknown, options: { signal: AbortSignal }) => opts.canCallTool(toolName, input, mode, options),
+        canUseTool: (toolName: string, input: Record<string, unknown>, options) => opts.canCallTool(toolName, input, mode, options),
         abort: opts.signal,
         pathToClaudeCodeExecutable: 'claude',
         settingsPath: opts.hookSettingsPath,
@@ -163,14 +172,16 @@ export async function claudeRemote(opts: {
     };
 
     // Push initial message
-    let messages = new PushableAsyncIterable<SDKUserMessage>();
+    // SDKUserMessage requires metadata fields (parent_tool_use_id, session_id) in output format,
+    // but the subprocess only needs type+message when receiving user input over stream-json stdin.
+    let messages = new PushableAsyncIterable<SDKMessage>();
     messages.push({
         type: 'user',
         message: {
             role: 'user',
             content: initial.message,
         },
-    });
+    } as SDKMessage);
 
     // Start the loop
     const response = query({
@@ -226,7 +237,7 @@ export async function claudeRemote(opts: {
                 // If the session is corrupted, exit cleanly without calling nextMessage().
                 // Feeding another message into the same broken session would trigger
                 // the same 400 error again immediately.
-                const resultMsg = message as SDKResultMessage;
+                const resultMsg = message as SDKResultSuccess;
                 if (
                     resultMsg.is_error &&
                     typeof resultMsg.result === 'string' &&
@@ -244,7 +255,7 @@ export async function claudeRemote(opts: {
                     return;
                 }
                 mode = next.mode;
-                messages.push({ type: 'user', message: { role: 'user', content: next.message } });
+                messages.push({ type: 'user', message: { role: 'user', content: next.message } } as SDKMessage);
             }
 
             // Handle tool result

@@ -162,11 +162,11 @@ check_port() {
 cleanup() {
     print_info "Shutting down..."
 
-    # Stop runner using hapi runner stop command
-    print_info "Stopping runner..."
-    HAPI_HOME="$DEV_HOME" "$BINARY" runner stop 2>/dev/null || true
+    if [ -n "$RUNNER_PID" ] && kill -0 "$RUNNER_PID" 2>/dev/null; then
+        print_info "Stopping runner (PID $RUNNER_PID)..."
+        kill "$RUNNER_PID" 2>/dev/null || true
+    fi
 
-    # Stop server (if running)
     if [ -n "$SERVER_PID" ] && kill -0 "$SERVER_PID" 2>/dev/null; then
         print_info "Stopping server (PID $SERVER_PID)..."
         kill "$SERVER_PID" 2>/dev/null || true
@@ -279,18 +279,17 @@ main() {
     echo "======================================"
     echo ""
 
-    # Start runner (runs as background daemon)
+    # Start runner in foreground mode as a background job so we can track and kill it
     print_info "Starting runner..."
-    "$BINARY" runner start
+    "$BINARY" runner start-sync &
+    RUNNER_PID=$!
 
     print_success "Dev instance is running!"
     echo ""
     echo "Press Ctrl+C to stop..."
     echo ""
 
-    # Keep script running and wait for server process
-    # The runner is already in background, we just need to keep the server alive
-    wait $SERVER_PID
+    wait $SERVER_PID $RUNNER_PID
 }
 
 # Run main function

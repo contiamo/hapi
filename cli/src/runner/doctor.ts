@@ -54,7 +54,7 @@ export async function findAllHappyProcesses(): Promise<Array<{ pid: number, comm
     }
 
     return allProcesses;
-  } catch (error) {
+  } catch {
     return [];
   }
 }

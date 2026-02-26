@@ -220,7 +220,7 @@ export class AcpSdkBackend implements AgentBackend {
         this.messageHandler.handleUpdate(update);
     }
 
-    private async handlePermissionRequest(params: unknown, requestId: string | number | null): Promise<unknown> {
+    private async handlePermissionRequest(params: unknown, _requestId: string | number | null): Promise<unknown> {
         if (!isObject(params)) {
             return { outcome: { outcome: 'cancelled' } };
         }

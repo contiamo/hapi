@@ -263,7 +263,7 @@ class CodexSessionScannerImpl extends BaseSessionScanner<CodexSessionEvent> {
                 }
             }
             return results;
-        } catch (error) {
+        } catch {
             return [];
         }
     }
@@ -272,7 +272,7 @@ class CodexSessionScannerImpl extends BaseSessionScanner<CodexSessionEvent> {
         let content: string;
         try {
             content = await readFile(filePath, 'utf-8');
-        } catch (error) {
+        } catch {
             return { events: [], nextCursor: startLine };
         }
 

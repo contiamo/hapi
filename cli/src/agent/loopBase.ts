@@ -3,34 +3,27 @@ import type { AgentSessionBase } from './sessionBase';
 
 export type LoopLauncher<TSession> = (session: TSession) => Promise<'switch' | 'exit'>;
 
-export async function runLocalRemoteSession<TSession extends AgentSessionBase<any>>(opts: {
+export interface LocalRemoteLoopOptions<TSession> {
     session: TSession;
     startingMode?: 'local' | 'remote';
     logTag: string;
     runLocal: LoopLauncher<TSession>;
     runRemote: LoopLauncher<TSession>;
-    onSessionReady?: (session: TSession) => void;
-}): Promise<void> {
-    if (opts.onSessionReady) {
-        opts.onSessionReady(opts.session);
-    }
-
-    await runLocalRemoteLoop({
-        session: opts.session,
-        startingMode: opts.startingMode,
-        logTag: opts.logTag,
-        runLocal: opts.runLocal,
-        runRemote: opts.runRemote
-    });
 }
 
-export async function runLocalRemoteLoop<TSession extends AgentSessionBase<any>>(opts: {
-    session: TSession;
-    startingMode?: 'local' | 'remote';
-    logTag: string;
-    runLocal: LoopLauncher<TSession>;
-    runRemote: LoopLauncher<TSession>;
-}): Promise<void> {
+export interface LocalRemoteSessionOptions<TSession> extends LocalRemoteLoopOptions<TSession> {
+    onSessionReady?: (session: TSession) => void;
+}
+
+export async function runLocalRemoteSession<TSession extends AgentSessionBase<any>>(opts: LocalRemoteSessionOptions<TSession>): Promise<void> {
+    const { onSessionReady, ...loopOpts } = opts;
+    if (onSessionReady) {
+        onSessionReady(opts.session);
+    }
+    await runLocalRemoteLoop(loopOpts);
+}
+
+export async function runLocalRemoteLoop<TSession extends AgentSessionBase<any>>(opts: LocalRemoteLoopOptions<TSession>): Promise<void> {
     let mode: 'local' | 'remote' = opts.startingMode ?? 'local';
 
     while (true) {

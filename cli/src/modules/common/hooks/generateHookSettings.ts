@@ -30,7 +30,7 @@ function shellQuote(value: string): string {
         return '""';
     }
 
-    if (/^[A-Za-z0-9_\/:=-]+$/.test(value)) {
+    if (/^[A-Za-z0-9_/:=-]+$/.test(value)) {
         return value;
     }
 

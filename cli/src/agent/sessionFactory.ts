@@ -1,5 +1,4 @@
 import os from 'node:os'
-import { randomUUID } from 'node:crypto'
 import { resolve } from 'node:path'
 
 import { ApiClient } from '@/api/api'
@@ -45,13 +44,15 @@ export function buildMachineMetadata(): MachineMetadata {
     }
 }
 
-export function buildSessionMetadata(options: {
+export type BuildSessionMetadataOptions = {
     flavor: string
     startedBy: SessionStartedBy
     workingDirectory: string
     machineId: string
     now?: number
-}): Metadata {
+}
+
+export function buildSessionMetadata(options: BuildSessionMetadataOptions): Metadata {
     const happyLibDir = runtimePath()
     const worktreeInfo = readWorktreeEnv()
     const now = options.now ?? Date.now()
@@ -109,7 +110,7 @@ export async function bootstrapSession(options: SessionBootstrapOptions): Promis
     const sessionId = options.sessionId ?? null
     const agentState = options.agentState === undefined ? {} : options.agentState
 
-    console.log('[SessionFactory.bootstrapSession] Bootstrapping session:', {
+    logger.debug('[SessionFactory.bootstrapSession] Bootstrapping session:', {
         sessionId,
         isNewSession: sessionId === null,
         hasResumeSession: !!options.resumeSessionId
@@ -137,7 +138,7 @@ export async function bootstrapSession(options: SessionBootstrapOptions): Promis
             state: agentState
         })
 
-        console.log('[SessionFactory.bootstrapSession] Session created/retrieved:', {
+        logger.debug('[SessionFactory.bootstrapSession] Session created/retrieved:', {
             sessionId: sessionInfo.id,
             namespace: sessionInfo.namespace
         })

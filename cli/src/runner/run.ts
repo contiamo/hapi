@@ -198,7 +198,7 @@ export async function startRunner(): Promise<void> {
     const spawnSession = async (options: SpawnSessionOptions): Promise<SpawnSessionResult> => {
       logger.debugLargeJson('[RUNNER RUN] Spawning session', options);
 
-      const { directory, sessionId, machineId, approvedNewDirectoryCreation = true, resumeSessionId, forkSession } = options;
+      const { directory, sessionId, machineId: _machineId, approvedNewDirectoryCreation = true, resumeSessionId, forkSession } = options;
       const agent = options.agent ?? 'claude';
       const yolo = options.yolo === true;
       const sessionType = options.sessionType ?? 'simple';
@@ -212,7 +212,7 @@ export async function startRunner(): Promise<void> {
         try {
           await fs.access(directory);
           logger.debug(`[RUNNER RUN] Directory exists: ${directory}`);
-        } catch (error) {
+        } catch {
           logger.debug(`[RUNNER RUN] Directory doesn't exist, creating: ${directory}`);
 
           // Check if directory creation is approved
@@ -255,7 +255,7 @@ export async function startRunner(): Promise<void> {
         try {
           await fs.access(directory);
           logger.debug(`[RUNNER RUN] Worktree base directory exists: ${directory}`);
-        } catch (error) {
+        } catch {
           logger.debug(`[RUNNER RUN] Worktree base directory missing: ${directory}`);
           return {
             type: 'error',
@@ -488,7 +488,7 @@ export async function startRunner(): Promise<void> {
     // Get process by session ID
     const getProcessBySessionId = (sessionId: string): any | null => {
       // Try to find by sessionId first
-      for (const [pid, session] of pidToTrackedSession.entries()) {
+      for (const [_pid, session] of pidToTrackedSession.entries()) {
         if (session.happySessionId === sessionId) {
           return session.childProcess || null;
         }

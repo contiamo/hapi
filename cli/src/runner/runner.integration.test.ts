@@ -17,8 +17,8 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { execSync, spawn } from 'child_process';
-import { existsSync, unlinkSync, readFileSync, writeFileSync, readdirSync } from 'fs';
-import path, { join } from 'path';
+import { existsSync, readFileSync, writeFileSync } from 'fs';
+import path from 'path';
 import { configuration } from '@/configuration';
 import { 
   listRunnerSessions, 
@@ -236,7 +236,7 @@ describe.skipIf(!await isServerHealthy())('Runner Integration Tests', { timeout:
     // Also kill the terminal process directly to be sure
     try {
       await killProcessByChildProcess(terminalHappyProcess);
-    } catch (e) {
+    } catch {
       // Process might already be dead
     }
   });
