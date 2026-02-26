@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.14.0] (2026-02-26)
+
+### Features
+
+* **cli**: add oxlint and adopt authoritative SDK types (#21)
+
+### Bug Fixes
+
+* skip message refetch on session-updated keepalive events (#23)
+* resolve virtualizer rendering flashes and load-more UX (#19)
+
 ## [0.13.0] (2026-02-22)
 
 ### Features
