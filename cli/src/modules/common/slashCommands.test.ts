@@ -60,7 +60,7 @@ describe('buildSlashCommandList', () => {
         const clearCmd = result.find(c => c.name === 'clear')
         const compactCmd = result.find(c => c.name === 'compact')
 
-        expect(clearCmd?.description).toContain('nuclear option')
+        expect(clearCmd?.description).toContain('Nuclear option')
         expect(compactCmd?.description).toContain('isolated')
     })
 
