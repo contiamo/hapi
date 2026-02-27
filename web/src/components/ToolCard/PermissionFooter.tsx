@@ -133,14 +133,14 @@ export function PermissionFooter(props: {
     const approve = async () => {
         if (!isPending || loading || loadingAllEdits || loadingForSession) return
         setLoading('allow')
-        await run(() => props.api.approvePermission(props.sessionId, permission.id, undefined, trimmedMessage || undefined), 'success')
+        await run(() => props.api.approvePermission(props.sessionId, permission.id, { message: trimmedMessage || undefined }), 'success')
         setLoading(null)
     }
 
     const approveAllEdits = async () => {
         if (!isPending || loading || loadingAllEdits || loadingForSession) return
         setLoadingAllEdits(true)
-        await run(() => props.api.approvePermission(props.sessionId, permission.id, 'acceptEdits', trimmedMessage || undefined), 'success')
+        await run(() => props.api.approvePermission(props.sessionId, permission.id, { mode: 'acceptEdits', message: trimmedMessage || undefined }), 'success')
         setLoadingAllEdits(false)
     }
 
@@ -149,7 +149,7 @@ export function PermissionFooter(props: {
         setLoadingForSession(true)
         const command = toolName === 'Bash' ? getInputStringAny(props.tool.input, ['command', 'cmd']) : null
         const toolIdentifier = toolName === 'Bash' && command ? `Bash(${command})` : toolName
-        await run(() => props.api.approvePermission(props.sessionId, permission.id, { allowTools: [toolIdentifier] }, trimmedMessage || undefined), 'success')
+        await run(() => props.api.approvePermission(props.sessionId, permission.id, { allowTools: [toolIdentifier], message: trimmedMessage || undefined }), 'success')
         setLoadingForSession(false)
     }
 
@@ -189,6 +189,7 @@ export function PermissionFooter(props: {
                 className="mt-2 w-full resize-none rounded-md border border-[var(--app-border)] bg-transparent px-2 py-1.5 text-sm placeholder:text-[var(--app-hint)] focus:outline-none focus:ring-1 focus:ring-[var(--app-border)] disabled:opacity-50"
                 rows={2}
                 placeholder={t('tool.messageHint')}
+                aria-label={t('tool.messageHint')}
                 value={message}
                 disabled={props.disabled || isActing}
                 onChange={(e) => setMessage(e.target.value)}

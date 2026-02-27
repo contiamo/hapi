@@ -367,26 +367,23 @@ class ClaudeRemoteLauncher {
                 mode: EnhancedMode;
             } | null = null;
 
-            let previousSessionId: string | null = null;
             while (!this.exitReason) {
                 logger.debug('[remote]: launch');
                 messageBuffer.addMessage('═'.repeat(40), 'status');
 
-                // A null session ID means /clear was used — treat as a fresh session.
-                // A non-null but changed ID just means Claude resumed with a new ID — same conversation.
-                const isNewSession = session.sessionId === null;
-                if (isNewSession) {
+                // session.sessionId is null only after /clear (clearSessionId() was called).
+                // A non-null ID means this is a resume of the same conversation — preserve
+                // session-scoped permissions (allowedTools etc.) across turns.
+                if (session.sessionId === null) {
                     messageBuffer.addMessage('Starting new Claude session...', 'status');
                     permissionHandler.reset();
                     sdkToLogConverter.resetParentChain();
-                    logger.debug(`[remote]: New session (after /clear), previous: ${previousSessionId}`);
+                    logger.debug('[remote]: New session (after /clear)');
                 } else {
                     permissionHandler.resetTurn();
                     messageBuffer.addMessage('Continuing Claude session...', 'status');
                     logger.debug(`[remote]: Continuing session: ${session.sessionId}`);
                 }
-
-                previousSessionId = session.sessionId;
                 const controller = new AbortController();
                 this.abortController = controller;
                 this.abortFuture = new Future<void>();
@@ -485,7 +482,6 @@ class ClaudeRemoteLauncher {
                     this.abortFuture?.resolve(undefined);
                     this.abortFuture = null;
                     logger.debug('[remote]: launch done');
-                    permissionHandler.resetTurn();
                     modeHash = null;
                     mode = null;
                 }

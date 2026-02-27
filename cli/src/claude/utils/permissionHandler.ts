@@ -197,6 +197,8 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
         // Handle default case for all other tools
         if (response.approved) {
             // If the user attached a message alongside their approval, queue it as follow-up input.
+            // We use only permissionMode here; model/fallback inherit from the queue consumer's
+            // current mode rather than being explicitly forwarded.
             if (response.message) {
                 this.session.queue.push(response.message, { permissionMode: this.permissionMode });
             }
@@ -439,15 +441,13 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
      * Soft reset between turns of the same conversation.
      * Clears per-turn state (tool calls, responses) but preserves session-scoped
      * permissions (allowedTools, allowedBashLiterals, allowedBashPrefixes).
+     *
+     * No pending requests should exist at turn boundaries (claudeRemote has
+     * already completed), so we do not cancel them here.
      */
     resetTurn(): void {
         this.toolCalls = [];
         this.responses.clear();
-
-        this.cancelPendingRequests({
-            completedReason: 'Turn completed',
-            rejectMessage: 'Turn reset'
-        });
     }
 
     /**

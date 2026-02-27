@@ -377,19 +377,17 @@ export class ApiClient {
     async approvePermission(
         sessionId: string,
         requestId: string,
-        modeOrOptions?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | {
+        options?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | {
             mode?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan'
             allowTools?: string[]
             decision?: 'approved' | 'approved_for_session' | 'denied' | 'abort'
             answers?: Record<string, string[]> | Record<string, { answers: string[] }>
             message?: string
-        },
-        message?: string
+        }
     ): Promise<void> {
-        const base = typeof modeOrOptions === 'string' || modeOrOptions === undefined
-            ? { mode: modeOrOptions }
-            : modeOrOptions
-        const body = message ? { ...base, message } : base
+        const body = typeof options === 'string' || options === undefined
+            ? { mode: options }
+            : options
         await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/permissions/${encodeURIComponent(requestId)}/approve`, {
             method: 'POST',
             body: JSON.stringify(body)
