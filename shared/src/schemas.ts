@@ -74,10 +74,27 @@ export const MetadataSchema = z.object({
 
 export type Metadata = z.infer<typeof MetadataSchema>
 
+const PermissionRuleValueSchema = z.object({
+    toolName: z.string(),
+    ruleContent: z.string().optional()
+})
+
+export const PermissionUpdateSchema = z.discriminatedUnion('type', [
+    z.object({ type: z.literal('addRules'), rules: z.array(PermissionRuleValueSchema), behavior: z.enum(['allow', 'deny', 'ask']), destination: z.string() }),
+    z.object({ type: z.literal('replaceRules'), rules: z.array(PermissionRuleValueSchema), behavior: z.enum(['allow', 'deny', 'ask']), destination: z.string() }),
+    z.object({ type: z.literal('removeRules'), rules: z.array(PermissionRuleValueSchema), behavior: z.enum(['allow', 'deny', 'ask']), destination: z.string() }),
+    z.object({ type: z.literal('setMode'), mode: z.string(), destination: z.string() }),
+    z.object({ type: z.literal('addDirectories'), directories: z.array(z.string()), destination: z.string() }),
+    z.object({ type: z.literal('removeDirectories'), directories: z.array(z.string()), destination: z.string() }),
+])
+
+export type PermissionUpdate = z.infer<typeof PermissionUpdateSchema>
+
 export const AgentStateRequestSchema = z.object({
     tool: z.string(),
     arguments: z.unknown(),
-    createdAt: z.number().nullish()
+    createdAt: z.number().nullish(),
+    suggestions: z.array(PermissionUpdateSchema).optional()
 })
 
 export type AgentStateRequest = z.infer<typeof AgentStateRequestSchema>
@@ -91,7 +108,6 @@ export const AgentStateCompletedRequestSchema = z.object({
     reason: z.string().optional(),
     mode: z.string().optional(),
     decision: z.enum(['approved', 'approved_for_session', 'denied', 'abort']).optional(),
-    allowTools: z.array(z.string()).optional(),
     // Flat format: Record<string, string[]> (AskUserQuestion)
     // Nested format: Record<string, { answers: string[] }> (request_user_input)
     answers: z.union([

@@ -1,4 +1,4 @@
-import type { ModelMode, PermissionMode } from '@hapi/protocol/types'
+import type { ModelMode, PermissionMode, PermissionUpdate } from '@hapi/protocol/types'
 import type { Server } from 'socket.io'
 import type { RpcRegistry } from '../socket/rpcRegistry'
 
@@ -42,7 +42,7 @@ export class RpcGateway {
         sessionId: string,
         requestId: string,
         mode?: PermissionMode,
-        allowTools?: string[],
+        suggestions?: PermissionUpdate[],
         decision?: 'approved' | 'approved_for_session' | 'denied' | 'abort',
         answers?: Record<string, string[]> | Record<string, { answers: string[] }>,
         message?: string
@@ -51,7 +51,7 @@ export class RpcGateway {
             id: requestId,
             approved: true,
             mode,
-            allowTools,
+            suggestions,
             decision,
             answers,
             message

@@ -1,5 +1,5 @@
 import { isPermissionModeAllowed } from '@hapi/protocol'
-import { PermissionModeSchema } from '@hapi/protocol/schemas'
+import { PermissionModeSchema, PermissionUpdateSchema } from '@hapi/protocol/schemas'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import type { SyncEngine } from '../../sync/syncEngine'
@@ -17,7 +17,7 @@ const answersSchema = z.union([
 
 const approveBodySchema = z.object({
     mode: PermissionModeSchema.optional(),
-    allowTools: z.array(z.string()).optional(),
+    suggestions: z.array(PermissionUpdateSchema).optional(),
     decision: decisionSchema.optional(),
     answers: answersSchema.optional(),
     message: z.string().optional()
@@ -62,11 +62,11 @@ export function createPermissionsRoutes(getSyncEngine: () => SyncEngine | null):
                 return c.json({ error: 'Invalid permission mode' }, 400)
             }
         }
-        const allowTools = parsed.data.allowTools
+        const suggestions = parsed.data.suggestions
         const decision = parsed.data.decision
         const answers = parsed.data.answers
         const message = parsed.data.message
-        await engine.approvePermission(sessionId, requestId, mode, allowTools, decision, answers, message)
+        await engine.approvePermission(sessionId, requestId, mode, suggestions, decision, answers, message)
         return c.json({ ok: true })
     })
 

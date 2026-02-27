@@ -7,7 +7,7 @@
  * - No E2E encryption; data is stored as JSON in SQLite
  */
 
-import type { DecryptedMessage, ModelMode, PermissionMode, Session, SyncEvent } from '@hapi/protocol/types'
+import type { DecryptedMessage, ModelMode, PermissionMode, PermissionUpdate, Session, SyncEvent } from '@hapi/protocol/types'
 import type { AgentState } from '@hapi/protocol/schemas'
 import type { Server } from 'socket.io'
 import { randomUUID } from 'node:crypto'
@@ -274,12 +274,12 @@ export class SyncEngine {
         sessionId: string,
         requestId: string,
         mode?: PermissionMode,
-        allowTools?: string[],
+        suggestions?: PermissionUpdate[],
         decision?: 'approved' | 'approved_for_session' | 'denied' | 'abort',
         answers?: Record<string, string[]> | Record<string, { answers: string[] }>,
         message?: string
     ): Promise<void> {
-        await this.rpcGateway.approvePermission(sessionId, requestId, mode, allowTools, decision, answers, message)
+        await this.rpcGateway.approvePermission(sessionId, requestId, mode, suggestions, decision, answers, message)
     }
 
     async denyPermission(

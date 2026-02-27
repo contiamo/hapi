@@ -9,9 +9,6 @@ function normalizeToolResultPermissions(value: unknown): ToolResultPermission | 
     if (result !== 'approved' && result !== 'denied') return undefined
 
     const mode = asString(value.mode) ?? undefined
-    const allowedTools = Array.isArray(value.allowedTools)
-        ? value.allowedTools.filter((tool) => typeof tool === 'string')
-        : undefined
     const decision = value.decision
     const normalizedDecision = decision === 'approved' || decision === 'approved_for_session' || decision === 'denied' || decision === 'abort'
         ? decision
@@ -21,7 +18,6 @@ function normalizeToolResultPermissions(value: unknown): ToolResultPermission | 
         date,
         result,
         mode,
-        allowedTools,
         decision: normalizedDecision
     }
 }

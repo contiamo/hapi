@@ -2,41 +2,18 @@ import { useState } from 'react'
 import type { ApiClient } from '@/api/client'
 import type { SessionMetadataSummary } from '@/types/api'
 import type { ChatToolCall, ToolPermission } from '@/chat/types'
-import { isObject } from '@hapi/protocol'
+import type { PermissionUpdate } from '@hapi/protocol/types'
 import { usePlatform } from '@/hooks/usePlatform'
 import { Spinner } from '@/components/Spinner'
 import { useTranslation, type TranslationKey } from '@/lib/use-translation'
 
-function getInputStringAny(input: unknown, keys: string[]): string | null {
-    if (!isObject(input)) return null
-    for (const key of keys) {
-        const value = input[key]
-        if (typeof value === 'string' && value.length > 0) return value
-    }
-    return null
-}
-
-function isToolAllowedForSession(toolName: string, toolInput: unknown, allowedTools: string[] | undefined): boolean {
-    if (!allowedTools || allowedTools.length === 0) return false
-    if (allowedTools.includes(toolName)) return true
-
-    if (toolName === 'Bash') {
-        const command = getInputStringAny(toolInput, ['command', 'cmd'])
-        if (command) {
-            return allowedTools.includes(`Bash(${command})`)
-        }
-    }
-
-    return false
-}
-
-function formatPermissionSummary(permission: ToolPermission, toolName: string, toolInput: unknown, t: (key: TranslationKey) => string): string {
+function formatPermissionSummary(permission: ToolPermission, t: (key: TranslationKey) => string): string {
     if (permission.status === 'pending') return t('tool.waitingForApproval')
     if (permission.status === 'canceled') return permission.reason ? `${t('tool.canceled')}: ${permission.reason}` : t('tool.canceled')
 
     if (permission.status === 'approved') {
         if (permission.mode === 'acceptEdits') return t('tool.approvedAllowAllEdits')
-        if (isToolAllowedForSession(toolName, toolInput, permission.allowedTools)) return t('tool.approvedForSession')
+        if (permission.decision === 'approved_for_session') return t('tool.approvedForSession')
         return t('tool.approved')
     }
 
@@ -45,6 +22,30 @@ function formatPermissionSummary(permission: ToolPermission, toolName: string, t
     }
 
     return t('tool.allow')
+}
+
+const DESTINATION_LABELS: Record<string, string> = {
+    session: 'this session',
+    localSettings: 'this project (local)',
+    projectSettings: 'this project',
+    userSettings: 'all projects',
+}
+
+function formatSuggestionLabel(suggestion: PermissionUpdate): string {
+    if (suggestion.type === 'addRules' || suggestion.type === 'replaceRules' || suggestion.type === 'removeRules') {
+        return suggestion.rules.map(r => r.ruleContent ? `${r.toolName}(${r.ruleContent})` : r.toolName).join(', ')
+    }
+    if (suggestion.type === 'setMode') {
+        return `Mode: ${suggestion.mode}`
+    }
+    if (suggestion.type === 'addDirectories' || suggestion.type === 'removeDirectories') {
+        return suggestion.directories.join(', ')
+    }
+    return ''
+}
+
+function destinationLabel(destination: string): string {
+    return DESTINATION_LABELS[destination] ?? destination
 }
 
 function PermissionRowButton(props: {
@@ -95,10 +96,12 @@ export function PermissionFooter(props: {
     const [loadingForSession, setLoadingForSession] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [message, setMessage] = useState('')
+    // Editable rule content for each suggestion (keyed by index)
+    const [editedRules, setEditedRules] = useState<Record<number, string>>({})
 
     if (!permission) return null
 
-    const summary = formatPermissionSummary(permission, props.tool.name, props.tool.input, t)
+    const summary = formatPermissionSummary(permission, t)
     const isPending = permission.status === 'pending'
 
     const run = async (action: () => Promise<void>, hapticType: 'success' | 'error') => {
@@ -130,6 +133,21 @@ export function PermissionFooter(props: {
     const canAllowAllEdits = isPending && isEditTool
     const trimmedMessage = message.trim()
 
+    // Build the (possibly edited) suggestions to send back
+    const buildEditedSuggestions = (): PermissionUpdate[] | undefined => {
+        const suggestions = permission.suggestions
+        if (!suggestions?.length) return undefined
+        return suggestions.map((s, i) => {
+            if (s.type !== 'addRules' && s.type !== 'replaceRules' && s.type !== 'removeRules') return s
+            const edited = editedRules[i]
+            if (edited === undefined) return s
+            return {
+                ...s,
+                rules: s.rules.map(r => ({ ...r, ruleContent: edited }))
+            }
+        })
+    }
+
     const approve = async () => {
         if (!isPending || loading || loadingAllEdits || loadingForSession) return
         setLoading('allow')
@@ -147,9 +165,8 @@ export function PermissionFooter(props: {
     const approveForSession = async () => {
         if (!canAllowForSession || loading || loadingAllEdits || loadingForSession) return
         setLoadingForSession(true)
-        const command = toolName === 'Bash' ? getInputStringAny(props.tool.input, ['command', 'cmd']) : null
-        const toolIdentifier = toolName === 'Bash' && command ? `Bash(${command})` : toolName
-        await run(() => props.api.approvePermission(props.sessionId, permission.id, { allowTools: [toolIdentifier], message: trimmedMessage || undefined }), 'success')
+        const suggestions = buildEditedSuggestions()
+        await run(() => props.api.approvePermission(props.sessionId, permission.id, { suggestions, message: trimmedMessage || undefined }), 'success')
         setLoadingForSession(false)
     }
 
@@ -174,6 +191,7 @@ export function PermissionFooter(props: {
     }
 
     const isActing = loading !== null || loadingAllEdits || loadingForSession
+    const suggestions = permission.suggestions
 
     return (
         <div className="mt-2">
@@ -194,6 +212,38 @@ export function PermissionFooter(props: {
                 disabled={props.disabled || isActing}
                 onChange={(e) => setMessage(e.target.value)}
             />
+
+            {canAllowForSession && suggestions?.length ? (
+                <div className="mt-2 space-y-1">
+                    <div className="text-xs text-[var(--app-hint)]">Rule to save:</div>
+                    {suggestions.map((s, i) => {
+                        if (s.type !== 'addRules' && s.type !== 'replaceRules' && s.type !== 'removeRules') {
+                            return (
+                                <div key={i} className="flex items-center gap-2 rounded-md border border-[var(--app-border)] px-2 py-1.5">
+                                    <span className="flex-1 text-sm font-mono">{formatSuggestionLabel(s)}</span>
+                                    <span className="text-xs text-[var(--app-hint)]">{destinationLabel(s.destination)}</span>
+                                </div>
+                            )
+                        }
+                        const ruleContent = editedRules[i] ?? (s.rules[0]?.ruleContent ?? '')
+                        return (
+                            <div key={i} className="flex items-center gap-2 rounded-md border border-[var(--app-border)] px-2 py-1">
+                                <span className="shrink-0 text-sm font-mono">{s.rules[0]?.toolName ?? s.type}(</span>
+                                <input
+                                    type="text"
+                                    className="min-w-0 flex-1 bg-transparent text-sm font-mono focus:outline-none disabled:opacity-50"
+                                    value={ruleContent}
+                                    disabled={props.disabled || isActing}
+                                    onChange={(e) => setEditedRules(prev => ({ ...prev, [i]: e.target.value }))}
+                                    aria-label="Rule pattern"
+                                />
+                                <span className="shrink-0 text-sm font-mono">)</span>
+                                <span className="shrink-0 text-xs text-[var(--app-hint)]">{destinationLabel(s.destination)}</span>
+                            </div>
+                        )
+                    })}
+                </div>
+            ) : null}
 
             <div className="mt-1 flex flex-col gap-1">
                 <PermissionRowButton

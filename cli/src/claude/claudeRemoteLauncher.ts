@@ -305,10 +305,6 @@ class ClaudeRemoteLauncher {
                                     permissions.mode = response.mode;
                                 }
 
-                                if (response.allowTools && response.allowTools.length > 0) {
-                                    permissions.allowedTools = response.allowTools;
-                                }
-
                                 content[i] = {
                                     ...c,
                                     permissions

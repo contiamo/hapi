@@ -26,7 +26,7 @@ interface PermissionResponse {
     approved: boolean;
     reason?: string;
     mode?: PermissionMode;
-    allowTools?: string[];
+    suggestions?: PermissionUpdate[];
     answers?: Record<string, string[]> | Record<string, { answers: string[] }>;
     message?: string;
     receivedAt?: number;
@@ -117,7 +117,6 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
             status: response.approved ? 'approved' : 'denied',
             reason: response.reason,
             mode: response.mode,
-            allowTools: response.allowTools,
             answers: response.answers
         };
 
@@ -186,13 +185,12 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
                 this.session.queue.push(response.message, { permissionMode: this.permissionMode });
             }
 
-            // Build updatedPermissions: for "allow for session", pass the SDK's own suggestions
-            // back so the SDK tracks this and won't ask again. For plain approve, no update needed.
-            // Note: response.allowTools content is not read — only its presence signals the intent.
-            const updatedPermissions =
-                response.allowTools?.length && pending.suggestions?.length
-                    ? pending.suggestions
-                    : undefined;
+            // Build updatedPermissions: if the user confirmed suggestions (possibly edited),
+            // return them so the SDK records the rule and won't ask again.
+            // For plain approve (no suggestions), no update needed.
+            const updatedPermissions = response.suggestions?.length
+                ? response.suggestions
+                : undefined;
 
             pending.resolve({
                 behavior: 'allow',
@@ -231,8 +229,6 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
         if (!isQuestionTool && this.permissionMode === 'acceptEdits' && descriptor.edit) {
             return { behavior: 'allow', updatedInput: input };
         }
-
-        logger.debug(`[PermissionHandler] suggestions for ${toolName}:`, JSON.stringify(options.suggestions));
 
         //
         // Approval flow

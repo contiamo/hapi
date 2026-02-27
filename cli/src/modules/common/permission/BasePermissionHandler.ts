@@ -44,7 +44,6 @@ export type PermissionCompletion = {
     reason?: string;
     mode?: string;
     decision?: 'approved' | 'approved_for_session' | 'denied' | 'abort';
-    allowTools?: string[];
     answers?: Record<string, string[]> | Record<string, { answers: string[] }>;
 };
 
@@ -118,7 +117,8 @@ export abstract class BasePermissionHandler<TResponse extends { id: string }, TR
                 [id]: {
                     tool: toolName,
                     arguments: input,
-                    createdAt: Date.now()
+                    createdAt: Date.now(),
+                    suggestions
                 }
             }
         }));
@@ -144,7 +144,6 @@ export abstract class BasePermissionHandler<TResponse extends { id: string }, TR
                         reason: completion.reason,
                         mode: completion.mode,
                         decision: completion.decision,
-                        allowTools: completion.allowTools,
                         answers: completion.answers
                     }
                 }

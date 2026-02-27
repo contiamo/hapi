@@ -21,6 +21,7 @@ import type {
     SessionResponse,
     SessionsResponse
 } from '@/types/api'
+import type { PermissionUpdate } from '@hapi/protocol/types'
 
 type ApiClientOptions = {
     baseUrl?: string
@@ -379,7 +380,7 @@ export class ApiClient {
         requestId: string,
         options?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | {
             mode?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan'
-            allowTools?: string[]
+            suggestions?: PermissionUpdate[]
             decision?: 'approved' | 'approved_for_session' | 'denied' | 'abort'
             answers?: Record<string, string[]> | Record<string, { answers: string[] }>
             message?: string

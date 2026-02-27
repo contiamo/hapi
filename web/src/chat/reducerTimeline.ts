@@ -188,7 +188,6 @@ export function reduceTimeline(
                         status: c.permissions.result === 'approved' ? 'approved' : 'denied',
                         date: c.permissions.date,
                         mode: c.permissions.mode,
-                        allowedTools: c.permissions.allowedTools,
                         decision: c.permissions.decision
                     } satisfies ToolPermission) : undefined
 
@@ -197,7 +196,6 @@ export function reduceTimeline(
                             return {
                                 ...permissionEntry.permission,
                                 ...permissionFromResult,
-                                allowedTools: permissionFromResult.allowedTools ?? permissionEntry.permission.allowedTools,
                                 decision: permissionFromResult.decision ?? permissionEntry.permission.decision
                             } satisfies ToolPermission
                         }
