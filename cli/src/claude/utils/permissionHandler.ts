@@ -204,10 +204,12 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
             }
             pending.resolve({ behavior: 'allow', updatedInput: (pending.input as Record<string, unknown>) ?? {} });
         } else {
-            const denyMsg = response.reason
-                || response.message
-                || `The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed.`;
-            pending.resolve({ behavior: 'deny', message: denyMsg });
+            // If the user typed a message alongside deny, queue it as a follow-up user turn
+            // so Claude responds to the feedback rather than just stopping.
+            if (response.reason) {
+                this.session.queue.push(response.reason, { permissionMode: this.permissionMode });
+            }
+            pending.resolve({ behavior: 'deny', message: `The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed.` });
         }
 
         return completion;
