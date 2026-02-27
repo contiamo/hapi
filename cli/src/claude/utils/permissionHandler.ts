@@ -188,9 +188,10 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
 
             // Build updatedPermissions: for "allow for session", pass the SDK's own suggestions
             // back so the SDK tracks this and won't ask again. For plain approve, no update needed.
-            const updatedPermissions: PermissionUpdate[] | undefined =
-                response.allowTools && response.allowTools.length > 0
-                    ? (pending.suggestions ?? [])
+            // Note: response.allowTools content is not read — only its presence signals the intent.
+            const updatedPermissions =
+                response.allowTools?.length && pending.suggestions?.length
+                    ? pending.suggestions
                     : undefined;
 
             pending.resolve({
