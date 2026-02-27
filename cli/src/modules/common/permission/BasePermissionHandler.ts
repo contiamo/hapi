@@ -19,8 +19,6 @@ type AutoApprovalRuleSet = {
 const AUTO_APPROVE_TOOL_NAME_HINTS = [
     'change_title',
     'happy__change_title',
-    'geminireasoning',
-    'codexreasoning',
     'think',
     'save_memory'
 ];
@@ -90,27 +88,13 @@ export abstract class BasePermissionHandler<TResponse extends { id: string }, TR
 
         const lowerTool = toolName.toLowerCase();
         const lowerId = toolCallId.toLowerCase();
-        const decisionForMode: AutoApprovalDecision = mode === 'yolo' ? 'approved_for_session' : 'approved';
 
         if (rules.alwaysToolNameHints.some((name) => lowerTool.includes(name))) {
-            return decisionForMode;
-        }
-
-        if (rules.alwaysToolIdHints.some((name) => lowerId.includes(name))) {
-            return decisionForMode;
-        }
-
-        if (mode === 'yolo') {
-            return 'approved_for_session';
-        }
-
-        if (mode === 'safe-yolo') {
             return 'approved';
         }
 
-        if (mode === 'read-only') {
-            const isWriteTool = rules.writeToolNameHints.some((name) => lowerTool.includes(name));
-            return isWriteTool ? null : 'approved';
+        if (rules.alwaysToolIdHints.some((name) => lowerId.includes(name))) {
+            return 'approved';
         }
 
         return null;

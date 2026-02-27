@@ -9,6 +9,7 @@
         "prebuild": "bun run prepare:version",
         "dev": "vite",
         "build": "vite build && cp dist/index.html dist/404.html",
+        "lint": "oxlint src/",
         "typecheck": "tsc --noEmit",
         "preview": "vite preview",
         "test": "vitest",
@@ -62,6 +63,7 @@
         "tailwindcss": "^4.1.18",
         "typescript": "^5.9.3",
         "vite": "^7.3.0",
-        "vitest": "^2.1.8"
+        "vitest": "^2.1.8",
+        "oxlint": "^1.50.0"
     }
 }

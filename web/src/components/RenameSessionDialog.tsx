@@ -45,7 +45,7 @@ export function RenameSessionDialog(props: RenameSessionDialogProps) {
         try {
             await onRename(trimmed)
             onClose()
-        } catch (err) {
+        } catch {
             setError(t('dialog.rename.error'))
         }
     }

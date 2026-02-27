@@ -3,7 +3,6 @@ export interface SpawnSessionOptions {
     directory: string
     sessionId?: string
     approvedNewDirectoryCreation?: boolean
-    agent?: 'claude' | 'codex' | 'gemini'
     model?: string
     yolo?: boolean
     token?: string

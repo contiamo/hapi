@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, waitFor, cleanup, fireEvent } from '@testing-library/react'
+import { render, waitFor, cleanup } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { HappyChatProvider, useHappyChatContext } from './context'
 import { HappyComposer } from './HappyComposer'
@@ -268,7 +268,7 @@ describe('HappyComposer Integration Tests', () => {
                 timestamp: 2000
             })
 
-            const { container } = render(
+            render(
                 <TestHarness>
                     <HappyComposer active={true} />
                 </TestHarness>
@@ -301,7 +301,7 @@ describe('HappyComposer Integration Tests', () => {
                 timestamp: 1000
             })
 
-            const { container } = render(
+            render(
                 <TestHarness>
                     <HappyComposer active={true} />
                 </TestHarness>
@@ -329,7 +329,7 @@ describe('HappyComposer Integration Tests', () => {
             mockApi.getDraft = vi.fn().mockRejectedValue(new Error('Network error'))
             const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-            const { container } = render(
+            render(
                 <TestHarness>
                     <HappyComposer active={true} />
                 </TestHarness>
@@ -356,7 +356,7 @@ describe('HappyComposer Integration Tests', () => {
             // No local draft
             mockApi.getDraft = vi.fn().mockResolvedValue(null)
 
-            const { container } = render(
+            render(
                 <TestHarness>
                     <HappyComposer active={true} />
                 </TestHarness>
@@ -467,7 +467,7 @@ describe('HappyComposer Integration Tests', () => {
 
             mockApi.getDraft = vi.fn().mockResolvedValue(null)
 
-            const { container } = render(
+            render(
                 <TestHarness sessionId="session-2">
                     <HappyComposer active={true} />
                 </TestHarness>

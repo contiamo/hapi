@@ -178,10 +178,6 @@ export function isSkippableAgentContent(content: unknown): boolean {
     return Boolean(data.isMeta) || Boolean(data.isCompactSummary)
 }
 
-export function isCodexContent(content: unknown): boolean {
-    return isObject(content) && content.type === 'codex'
-}
-
 export function normalizeAgentRecord(
     messageId: string,
     localId: string | null,
@@ -308,76 +304,6 @@ export function normalizeAgentRecord(
             content: event,
             isSidechain: false,
             meta
-        }
-    }
-
-    if (content.type === 'codex') {
-        const data = isObject(content.data) ? content.data : null
-        if (!data || typeof data.type !== 'string') return null
-
-        if (data.type === 'message' && typeof data.message === 'string') {
-            return {
-                id: messageId,
-                localId,
-                createdAt,
-                role: 'agent',
-                isSidechain: false,
-                content: [{ type: 'text', text: data.message, uuid: messageId, parentUUID: null }],
-                meta
-            }
-        }
-
-        if (data.type === 'reasoning' && typeof data.message === 'string') {
-            return {
-                id: messageId,
-                localId,
-                createdAt,
-                role: 'agent',
-                isSidechain: false,
-                content: [{ type: 'reasoning', text: data.message, uuid: messageId, parentUUID: null }],
-                meta
-            }
-        }
-
-        if (data.type === 'tool-call' && typeof data.callId === 'string') {
-            const uuid = asString(data.id) ?? messageId
-            return {
-                id: messageId,
-                localId,
-                createdAt,
-                role: 'agent',
-                isSidechain: false,
-                content: [{
-                    type: 'tool-call',
-                    id: data.callId,
-                    name: asString(data.name) ?? 'unknown',
-                    input: data.input,
-                    description: null,
-                    uuid,
-                    parentUUID: null
-                }],
-                meta
-            }
-        }
-
-        if (data.type === 'tool-call-result' && typeof data.callId === 'string') {
-            const uuid = asString(data.id) ?? messageId
-            return {
-                id: messageId,
-                localId,
-                createdAt,
-                role: 'agent',
-                isSidechain: false,
-                content: [{
-                    type: 'tool-result',
-                    tool_use_id: data.callId,
-                    content: data.output,
-                    is_error: false,
-                    uuid,
-                    parentUUID: null
-                }],
-                meta
-            }
         }
     }
 

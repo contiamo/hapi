@@ -1,4 +1,4 @@
-import { getCurrentRealtimeSessionId, getVoiceSession, isVoiceSessionStarted } from '../RealtimeSession'
+import { getVoiceSession, isVoiceSessionStarted } from '../RealtimeSession'
 import {
     formatNewMessages,
     formatPermissionRequest,

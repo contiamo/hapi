@@ -1,11 +1,11 @@
 import { ApiClient, ApiSessionClient } from '@/lib';
 import { MessageQueue2 } from '@/utils/MessageQueue2';
 import { logger } from '@/ui/logger';
-import { AgentSessionBase } from '@/agent/sessionBase';
+import { AgentSessionBase } from '@/claude/sessionBase';
 import type { SessionModelMode } from '@/api/types';
 import type { EnhancedMode } from './loop';
 import type { PermissionMode } from './loop';
-import type { LocalLaunchExitReason } from '@/agent/localLaunchPolicy';
+import type { LocalLaunchExitReason } from '@/claude/localLaunchPolicy';
 import type { McpServerConfig } from './sdk';
 
 type LocalLaunchFailure = {
@@ -36,7 +36,7 @@ export interface SessionOptions {
 export class Session extends AgentSessionBase<EnhancedMode> {
     readonly claudeEnvVars?: Record<string, string>;
     claudeArgs?: string[];
-    readonly mcpServers: Record<string, any>;
+    readonly mcpServers: Record<string, McpServerConfig>;
     readonly allowedTools?: string[];
     readonly hookSettingsPath: string;
     readonly startedBy: 'runner' | 'terminal';

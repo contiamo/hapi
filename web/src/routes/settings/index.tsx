@@ -127,7 +127,7 @@ export default function SettingsPage() {
         try {
             await checkForUpdate()
             toast.success('Checked for updates')
-        } catch (error) {
+        } catch {
             toast.error('Failed to check for updates')
         }
     }

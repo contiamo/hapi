@@ -16,7 +16,6 @@ export type {
     AgentState,
     AttachmentMetadata,
     ClaudePermissionMode,
-    CodexPermissionMode,
     Metadata,
     Session
 } from '@hapi/protocol/types'

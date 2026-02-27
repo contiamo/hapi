@@ -404,9 +404,7 @@ export class SyncEngine {
             sessionId,
             active: session.active,
             flavor: session.metadata?.flavor,
-            hasClaudeSessionId: !!session.metadata?.claudeSessionId,
-            hasCodexSessionId: !!session.metadata?.codexSessionId,
-            hasGeminiSessionId: !!session.metadata?.geminiSessionId
+            hasClaudeSessionId: !!session.metadata?.claudeSessionId
         })
 
         // Capture the initial state for atomic transition check
@@ -510,32 +508,16 @@ export class SyncEngine {
             throw new Error('Session has no metadata')
         }
 
-        const flavor = metadata.flavor || 'claude'
-        let sessionIdToResume: string | undefined
-
-        switch (flavor) {
-            case 'claude':
-                sessionIdToResume = metadata.claudeSessionId
-                break
-            case 'codex':
-                sessionIdToResume = metadata.codexSessionId
-                break
-            case 'gemini':
-                sessionIdToResume = metadata.geminiSessionId
-                break
-            default:
-                throw new Error(`Unknown agent flavor: ${flavor}`)
-        }
+        const sessionIdToResume = metadata.claudeSessionId
 
         if (!sessionIdToResume) {
             console.log('[SyncEngine.spawnWithResume] No session ID to resume:', {
                 sessionId: session.id,
-                flavor,
                 metadata
             })
             throw new Error(
-                `No ${flavor} session ID found - cannot resume. ` +
-                `Session may not have been fully initialized.`
+                'No Claude session ID found - cannot resume. ' +
+                'Session may not have been fully initialized.'
             )
         }
 
@@ -554,7 +536,6 @@ export class SyncEngine {
             machineId,
             path: metadata.path,
             sessionIdToResume,
-            flavor,
             shouldFork,
             shouldEnableYolo
         })
@@ -568,7 +549,6 @@ export class SyncEngine {
             machineId,
             metadata.path,
             sessionIdToResume,    // Agent session ID to resume from (may change after resume)
-            flavor,
             shouldFork,           // Pass fork flag
             shouldEnableYolo      // Pass yolo flag
         )
@@ -611,11 +591,6 @@ export class SyncEngine {
             throw new Error('Source session not found')
         }
 
-        // Validate this is a Claude session
-        if (sourceSession.metadata?.flavor !== 'claude') {
-            throw new Error('Fork is only supported for Claude sessions')
-        }
-
         // Validate has Claude session ID (needed for --resume --fork-session)
         if (!sourceSession.metadata?.claudeSessionId) {
             throw new Error('Cannot fork: No Claude session ID found')
@@ -635,7 +610,7 @@ export class SyncEngine {
         }
 
         // Create new session in store
-        const newSession = this.store.sessions.createSession(
+        this.store.sessions.createSession(
             newSessionId,
             sourceSession.namespace,
             forkedMetadata,
@@ -780,13 +755,12 @@ export class SyncEngine {
     async spawnSession(
         machineId: string,
         directory: string,
-        agent: 'claude' | 'codex' | 'gemini' = 'claude',
         model?: string,
         yolo?: boolean,
         sessionType?: 'simple' | 'worktree',
         worktreeName?: string
     ): Promise<{ type: 'success'; sessionId: string } | { type: 'error'; message: string }> {
-        return await this.rpcGateway.spawnSession(machineId, directory, agent, model, yolo, sessionType, worktreeName)
+        return await this.rpcGateway.spawnSession(machineId, directory, model, yolo, sessionType, worktreeName)
     }
 
     async checkPathsExist(machineId: string, paths: string[]): Promise<Record<string, boolean>> {
@@ -837,12 +811,12 @@ export class SyncEngine {
         return await this.rpcGateway.runRipgrep(sessionId, args, cwd)
     }
 
-    async listSlashCommands(sessionId: string, agent: string): Promise<{
+    async listSlashCommands(sessionId: string): Promise<{
         success: boolean
         commands?: Array<{ name: string; description?: string; source: 'builtin' | 'user' }>
         error?: string
     }> {
-        return await this.rpcGateway.listSlashCommands(sessionId, agent)
+        return await this.rpcGateway.listSlashCommands(sessionId)
     }
 
     async listSkills(sessionId: string): Promise<{

@@ -228,7 +228,7 @@ export class ApiMachineClient {
 
     setRPCHandlers({ spawnSession, stopSession, requestShutdown, getProcessBySessionId }: MachineRpcHandlers): void {
         this.rpcHandlerManager.registerHandler('spawn-happy-session', async (params: any) => {
-            const { directory, sessionId, machineId, approvedNewDirectoryCreation, agent, model, yolo, token, sessionType, worktreeName } = params || {}
+            const { directory, sessionId, machineId, approvedNewDirectoryCreation, model, yolo, token, sessionType, worktreeName } = params || {}
 
             if (!directory) {
                 throw new Error('Directory is required')
@@ -239,7 +239,6 @@ export class ApiMachineClient {
                 sessionId,
                 machineId,
                 approvedNewDirectoryCreation,
-                agent,
                 model,
                 yolo,
                 token,
@@ -272,7 +271,7 @@ export class ApiMachineClient {
         })
 
         this.rpcHandlerManager.registerHandler('spawn-resumed-session', async (params: any) => {
-            const { hapiSessionId, directory, agent, sessionIdToResume, fork, yolo } = params || {}
+            const { hapiSessionId, directory, sessionIdToResume, fork, yolo } = params || {}
 
             if (!hapiSessionId) {
                 throw new Error('Hapi session ID is required')
@@ -289,7 +288,6 @@ export class ApiMachineClient {
             const result = await spawnSession({
                 directory,
                 sessionId: hapiSessionId,
-                agent,
                 resumeSessionId: sessionIdToResume,
                 forkSession: fork === true,
                 yolo: yolo === true

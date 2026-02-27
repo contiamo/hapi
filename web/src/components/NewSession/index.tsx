@@ -8,9 +8,8 @@ import { useActiveSuggestions, type Suggestion } from '@/hooks/useActiveSuggesti
 import { useDirectorySuggestions } from '@/hooks/useDirectorySuggestions'
 import { useRecentPaths } from '@/hooks/useRecentPaths'
 import { useBasePaths } from '@/hooks/useBasePaths'
-import type { AgentType, SessionType } from './types'
+import type { SessionType } from './types'
 import { ActionButtons } from './ActionButtons'
-import { AgentSelector } from './AgentSelector'
 import { DirectorySection } from './DirectorySection'
 import { MachineSelector } from './MachineSelector'
 import { ModelSelector } from './ModelSelector'
@@ -37,7 +36,6 @@ export function NewSession(props: {
     const [suppressSuggestions, setSuppressSuggestions] = useState(false)
     const [isDirectoryFocused, setIsDirectoryFocused] = useState(false)
     const [pathExistence, setPathExistence] = useState<Record<string, boolean>>({})
-    const [agent, setAgent] = useState<AgentType>('claude')
     const [model, setModel] = useState('auto')
     const [yoloMode, setYoloMode] = useState(false)
     const [sessionType, setSessionType] = useState<SessionType>('simple')
@@ -52,10 +50,6 @@ export function NewSession(props: {
             worktreeInputRef.current?.focus()
         }
     }, [sessionType])
-
-    useEffect(() => {
-        setModel('auto')
-    }, [agent])
 
     useEffect(() => {
         if (props.machines.length === 0) return
@@ -295,7 +289,6 @@ export function NewSession(props: {
             const result = await spawnSession({
                 machineId,
                 directory: directory.trim(),
-                agent,
                 model: model !== 'auto' ? model : undefined,
                 yolo: yoloMode,
                 sessionType,
@@ -353,13 +346,7 @@ export function NewSession(props: {
                 onSessionTypeChange={setSessionType}
                 onWorktreeNameChange={setWorktreeName}
             />
-            <AgentSelector
-                agent={agent}
-                isDisabled={isFormDisabled}
-                onAgentChange={setAgent}
-            />
             <ModelSelector
-                agent={agent}
                 model={model}
                 isDisabled={isFormDisabled}
                 onModelChange={setModel}

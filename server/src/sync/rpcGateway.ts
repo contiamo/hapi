@@ -151,7 +151,6 @@ export class RpcGateway {
      * @param machineId - The machine to spawn the process on
      * @param directory - The working directory for the session
      * @param claudeSessionIdToResume - The Claude session ID to resume from (may change)
-     * @param agent - The agent type (claude, codex, or gemini)
      * @throws {Error} If spawn fails or returns an error
      */
     async spawnResumedSession(
@@ -159,7 +158,6 @@ export class RpcGateway {
         machineId: string,
         directory: string,
         sessionIdToResume: string,
-        agent: 'claude' | 'codex' | 'gemini' = 'claude',
         fork: boolean = false,
         yolo: boolean = false
     ): Promise<void> {
@@ -168,7 +166,6 @@ export class RpcGateway {
             machineId,
             directory,
             sessionIdToResume,
-            agent,
             fork,
             yolo
         })
@@ -179,7 +176,6 @@ export class RpcGateway {
             {
                 hapiSessionId,
                 directory,
-                agent,
                 sessionIdToResume,
                 fork,
                 yolo
@@ -235,7 +231,6 @@ export class RpcGateway {
     async spawnSession(
         machineId: string,
         directory: string,
-        agent: 'claude' | 'codex' | 'gemini' = 'claude',
         model?: string,
         yolo?: boolean,
         sessionType?: 'simple' | 'worktree',
@@ -245,7 +240,7 @@ export class RpcGateway {
             const result = await this.machineRpc(
                 machineId,
                 'spawn-happy-session',
-                { type: 'spawn-in-directory', directory, agent, model, yolo, sessionType, worktreeName }
+                { type: 'spawn-in-directory', directory, model, yolo, sessionType, worktreeName }
             )
             if (result && typeof result === 'object') {
                 const obj = result as Record<string, unknown>
@@ -332,12 +327,12 @@ export class RpcGateway {
         return await this.sessionRpc(sessionId, 'ripgrep', { args, cwd }) as RpcCommandResponse
     }
 
-    async listSlashCommands(sessionId: string, agent: string): Promise<{
+    async listSlashCommands(sessionId: string): Promise<{
         success: boolean
         commands?: Array<{ name: string; description?: string; source: 'builtin' | 'user' }>
         error?: string
     }> {
-        return await this.sessionRpc(sessionId, 'listSlashCommands', { agent }) as {
+        return await this.sessionRpc(sessionId, 'listSlashCommands', {}) as {
             success: boolean
             commands?: Array<{ name: string; description?: string; source: 'builtin' | 'user' }>
             error?: string

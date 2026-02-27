@@ -82,7 +82,7 @@ function buildRequestUserInputUpdatedInput(input: unknown, answers: unknown): Re
 }
 
 export class PermissionHandler extends BasePermissionHandler<PermissionResponse, PermissionResult> {
-    private toolCalls: { id: string, name: string, input: any, used: boolean }[] = [];
+    private toolCalls: { id: string, name: string, input: Record<string, unknown>, used: boolean }[] = [];
     private responses = new Map<string, PermissionResponse>();
     private session: Session;
     private allowedTools = new Set<string>();
@@ -323,7 +323,7 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
     /**
      * Resolves tool call ID based on tool name and input
      */
-    private resolveToolCallId(name: string, args: any): string | null {
+    private resolveToolCallId(name: string, args: Record<string, unknown>): string | null {
         // Search in reverse (most recent first)
         for (let i = this.toolCalls.length - 1; i >= 0; i--) {
             const call = this.toolCalls[i];

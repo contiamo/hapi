@@ -10,10 +10,6 @@ export function getSessionName(session: Session): string {
     return session.id.slice(0, 8)
 }
 
-export function getAgentName(session: Session): string {
-    const flavor = session.metadata?.flavor
-    if (flavor === 'claude') return 'Claude'
-    if (flavor === 'codex') return 'Codex'
-    if (flavor === 'gemini') return 'Gemini'
-    return 'Agent'
+export function getAgentName(_session: Session): string {
+    return 'Claude'
 }

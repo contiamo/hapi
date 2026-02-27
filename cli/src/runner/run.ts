@@ -1,5 +1,4 @@
 import fs from 'fs/promises';
-import os from 'os';
 
 import { ApiClient } from '@/api/api';
 import { TrackedSession } from './types';
@@ -18,8 +17,7 @@ import { isRetryableConnectionError } from '@/utils/errorUtils';
 import { cleanupRunnerState, getInstalledCliMtimeMs, isRunnerRunningCurrentlyInstalledHappyVersion, stopRunner } from './controlClient';
 import { startRunnerControlServer } from './controlServer';
 import { createWorktree, removeWorktree, type WorktreeInfo } from './worktree';
-import { join } from 'path';
-import { buildMachineMetadata } from '@/agent/sessionFactory';
+import { buildMachineMetadata } from '@/claude/sessionFactory';
 
 export async function startRunner(): Promise<void> {
   // We don't have cleanup function at the time of server construction
@@ -199,7 +197,7 @@ export async function startRunner(): Promise<void> {
       logger.debugLargeJson('[RUNNER RUN] Spawning session', options);
 
       const { directory, sessionId, machineId: _machineId, approvedNewDirectoryCreation = true, resumeSessionId, forkSession } = options;
-      const agent = options.agent ?? 'claude';
+      
       const yolo = options.yolo === true;
       const sessionType = options.sessionType ?? 'simple';
       const worktreeName = options.worktreeName;
@@ -313,23 +311,9 @@ export async function startRunner(): Promise<void> {
         // Resolve authentication token if provided
         let extraEnv: Record<string, string> = {};
         if (options.token) {
-          if (options.agent === 'codex') {
-
-            // Create a temporary directory for Codex
-            const codexHomeDir = await fs.mkdtemp(join(os.tmpdir(), 'hapi-codex-'));
-
-            // Write the token to the temporary directory
-            await fs.writeFile(join(codexHomeDir, 'auth.json'), options.token);
-
-            // Set the environment variable for Codex
-            extraEnv = {
-              CODEX_HOME: codexHomeDir
-            };
-          } else if (options.agent === 'claude' || !options.agent) {
-            extraEnv = {
-              CLAUDE_CODE_OAUTH_TOKEN: options.token
-            };
-          }
+          extraEnv = {
+            CLAUDE_CODE_OAUTH_TOKEN: options.token
+          };
         }
 
         if (worktreeInfo) {
@@ -343,14 +327,8 @@ export async function startRunner(): Promise<void> {
           };
         }
 
-        // Construct arguments for the CLI
-        const agentCommand = agent === 'codex'
-          ? 'codex'
-          : agent === 'gemini'
-            ? 'gemini'
-            : 'claude';
         const args = [
-          agentCommand,
+          'claude',
           '--hapi-starting-mode', 'remote',
           '--started-by', 'runner'
         ];
@@ -360,13 +338,12 @@ export async function startRunner(): Promise<void> {
           args.push('--hapi-session-id', sessionId);
         }
 
-        // Pass session ID to resume if provided (unified flag for all agents)
+        // Pass session ID to resume if provided
         if (resumeSessionId) {
           args.push('--resume-session', resumeSessionId);
         }
 
-        // Pass fork flag if specified (Claude only)
-        if (forkSession && agent === 'claude') {
+        if (forkSession) {
           args.push('--fork-session');
         }
 

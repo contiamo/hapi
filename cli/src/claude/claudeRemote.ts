@@ -172,16 +172,16 @@ export async function claudeRemote(opts: ClaudeRemoteOptions) {
     };
 
     // Push initial message
-    // SDKUserMessage requires metadata fields (parent_tool_use_id, session_id) in output format,
+    // The SDK's SDKUserMessage output format has metadata fields (parent_tool_use_id, session_id),
     // but the subprocess only needs type+message when receiving user input over stream-json stdin.
-    let messages = new PushableAsyncIterable<SDKMessage>();
+    let messages = new PushableAsyncIterable<SDKUserMessage>();
     messages.push({
         type: 'user',
         message: {
             role: 'user',
             content: initial.message,
         },
-    } as SDKMessage);
+    } as SDKUserMessage);
 
     // Start the loop
     const response = query({
@@ -255,7 +255,7 @@ export async function claudeRemote(opts: ClaudeRemoteOptions) {
                     return;
                 }
                 mode = next.mode;
-                messages.push({ type: 'user', message: { role: 'user', content: next.message } } as SDKMessage);
+                messages.push({ type: 'user', message: { role: 'user', content: next.message } } as SDKUserMessage);
             }
 
             // Handle tool result

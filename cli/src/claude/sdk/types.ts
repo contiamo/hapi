@@ -36,9 +36,9 @@ import type {
     PermissionUpdate,
     PermissionResult,
     CanUseTool,
+    McpServerConfig,
     SDKUserMessage,
 } from '@anthropic-ai/claude-agent-sdk'
-import type { ClaudePermissionMode } from '@hapi/protocol/types'
 
 /**
  * Wire format of the permission control request sent from the CLI.
@@ -104,10 +104,7 @@ export interface SDKControlResponse {
 
 export type ControlResponseHandler = (response: SDKControlResponse['response']) => void
 
-/**
- * Options accepted by the local query() wrapper.
- * Uses PermissionMode from the SDK (which includes 'dontAsk').
- */
+/** Options accepted by the local query() wrapper. */
 export interface QueryOptions {
     abort?: AbortSignal
     additionalDirectories?: string[]
@@ -117,17 +114,15 @@ export interface QueryOptions {
     cwd?: string
     disallowedTools?: string[]
     maxTurns?: number
-    mcpServers?: Record<string, unknown>
+    mcpServers?: Record<string, McpServerConfig>
     pathToClaudeCodeExecutable?: string
-    permissionMode?: ClaudePermissionMode | PermissionMode
+    permissionMode?: PermissionMode
     continue?: boolean
     resume?: string
     model?: string
     fallbackModel?: string
     settingsPath?: string
     strictMcpConfig?: boolean
-    /** @deprecated Use canUseTool instead */
-    canCallTool?: CanUseTool
     canUseTool?: CanUseTool
 }
 

@@ -48,11 +48,9 @@ export function SessionChat(props: {
     const normalizedCacheRef = useRef<Map<string, { source: DecryptedMessage; normalized: NormalizedMessage | null }>>(new Map())
     const blocksByIdRef = useRef<Map<string, ChatBlock>>(new Map())
     const [forceScrollToken, setForceScrollToken] = useState(0)
-    const agentFlavor = props.session.metadata?.flavor ?? null
     const { abortSession, switchSession, setPermissionMode, setModelMode } = useSessionActions(
         props.api,
-        props.session.id,
-        agentFlavor
+        props.session.id
     )
 
     // Voice assistant integration
@@ -318,7 +316,6 @@ export function SessionChat(props: {
                             disabled={props.isSending || controlsDisabled}
                             permissionMode={props.session.permissionMode}
                             modelMode={props.session.modelMode}
-                            agentFlavor={agentFlavor}
                             active={props.session.active}
                             thinking={props.session.thinking}
                             agentState={props.session.agentState}

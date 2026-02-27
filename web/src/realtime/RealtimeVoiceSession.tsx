@@ -3,7 +3,7 @@ import { useConversation } from '@elevenlabs/react'
 import { registerVoiceSession, resetRealtimeSessionState } from './RealtimeSession'
 import { realtimeClientTools, registerSessionStore } from './realtimeClientTools'
 import { fetchVoiceToken } from '@/api/voice'
-import type { VoiceSession, VoiceSessionConfig, ConversationStatus, StatusCallback } from './types'
+import type { VoiceSession, VoiceSessionConfig, StatusCallback } from './types'
 import type { ApiClient } from '@/api/client'
 import type { Session } from '@/types/api'
 

@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { isPermissionModeAllowedForFlavor } from '@hapi/protocol'
+import { isPermissionModeAllowed } from '@hapi/protocol'
 import type { ApiClient } from '@/api/client'
 import type { ModelMode, PermissionMode } from '@/types/api'
 import { queryKeys } from '@/lib/query-keys'
@@ -10,8 +10,7 @@ import { useTranslation } from '@/lib/use-translation'
 
 export function useSessionActions(
     api: ApiClient | null,
-    sessionId: string | null,
-    agentFlavor?: string | null
+    sessionId: string | null
 ): {
     abortSession: () => Promise<void>
     archiveSession: () => Promise<void>
@@ -114,9 +113,8 @@ export function useSessionActions(
             if (!api || !sessionId) {
                 throw new Error('Session unavailable')
             }
-            const isKnownFlavor = agentFlavor === 'claude' || agentFlavor === 'codex' || agentFlavor === 'gemini'
-            if (isKnownFlavor && !isPermissionModeAllowedForFlavor(mode, agentFlavor)) {
-                throw new Error('Invalid permission mode for session flavor')
+            if (!isPermissionModeAllowed(mode)) {
+                throw new Error('Invalid permission mode')
             }
             await api.setPermissionMode(sessionId, mode)
         },

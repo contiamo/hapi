@@ -444,7 +444,7 @@ export class ApiClient {
     async spawnSession(
         machineId: string,
         directory: string,
-        agent?: 'claude' | 'codex' | 'gemini',
+        
         model?: string,
         yolo?: boolean,
         sessionType?: 'simple' | 'worktree',
@@ -452,7 +452,7 @@ export class ApiClient {
     ): Promise<SpawnResponse> {
         return await this.request<SpawnResponse>(`/api/machines/${encodeURIComponent(machineId)}/spawn`, {
             method: 'POST',
-            body: JSON.stringify({ directory, agent, model, yolo, sessionType, worktreeName })
+            body: JSON.stringify({ directory, model, yolo, sessionType, worktreeName })
         })
     }
 

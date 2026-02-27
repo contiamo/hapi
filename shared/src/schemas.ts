@@ -1,7 +1,7 @@
 import { z } from 'zod'
-import { MODEL_MODES, PERMISSION_MODES } from './modes'
+import { MODEL_MODES, CLAUDE_PERMISSION_MODES } from './modes'
 
-export const PermissionModeSchema = z.enum(PERMISSION_MODES)
+export const PermissionModeSchema = z.enum(CLAUDE_PERMISSION_MODES)
 export const ModelModeSchema = z.enum(MODEL_MODES)
 
 const MetadataSummarySchema = z.object({
@@ -46,8 +46,6 @@ export const MetadataSchema = z.object({
     summary: MetadataSummarySchema.optional(),
     machineId: z.string().optional(),
     claudeSessionId: z.string().optional(),
-    codexSessionId: z.string().optional(),
-    geminiSessionId: z.string().optional(),
     tools: z.array(z.string()).optional(),
     slashCommands: z.preprocess(
         (val) => {

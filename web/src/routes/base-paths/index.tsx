@@ -24,7 +24,7 @@ function BackIcon(props: { className?: string }) {
 export default function BasePathsPage() {
     const goBack = useAppGoBack()
     const { api } = useAppContext()
-    const { machines, basePaths: serverBasePaths } = useMachines(api, true)
+    const { basePaths: serverBasePaths } = useMachines(api, true)
 
     return (
         <div className="flex h-full flex-col">

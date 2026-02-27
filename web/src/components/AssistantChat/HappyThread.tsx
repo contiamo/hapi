@@ -6,7 +6,6 @@ import { HappyAssistantMessage } from '@/components/AssistantChat/messages/Assis
 import { HappyUserMessage } from '@/components/AssistantChat/messages/UserMessage'
 import { HappySystemMessage } from '@/components/AssistantChat/messages/SystemMessage'
 import { VirtualMessageList, type VirtualMessageListHandle } from '@/components/AssistantChat/VirtualMessageList'
-import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/Spinner'
 import { useTranslation } from '@/lib/use-translation'
 

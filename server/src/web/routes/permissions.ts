@@ -1,4 +1,4 @@
-import { isPermissionModeAllowedForFlavor } from '@hapi/protocol'
+import { isPermissionModeAllowed } from '@hapi/protocol'
 import { PermissionModeSchema } from '@hapi/protocol/schemas'
 import { Hono } from 'hono'
 import { z } from 'zod'
@@ -56,9 +56,8 @@ export function createPermissionsRoutes(getSyncEngine: () => SyncEngine | null):
 
         const mode = parsed.data.mode
         if (mode !== undefined) {
-            const flavor = session.metadata?.flavor ?? 'claude'
-            if (!isPermissionModeAllowedForFlavor(mode, flavor)) {
-                return c.json({ error: 'Invalid permission mode for session flavor' }, 400)
+            if (!isPermissionModeAllowed(mode)) {
+                return c.json({ error: 'Invalid permission mode' }, 400)
             }
         }
         const allowTools = parsed.data.allowTools

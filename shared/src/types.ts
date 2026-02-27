@@ -16,10 +16,7 @@ export type {
 export type { SessionSummary, SessionSummaryMetadata } from './sessionSummary'
 
 export type {
-    AgentFlavor,
     ClaudePermissionMode,
-    CodexPermissionMode,
-    GeminiPermissionMode,
     ModelMode,
     PermissionMode,
     PermissionModeOption,

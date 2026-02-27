@@ -113,7 +113,7 @@ export function formatMessage(message: DecryptedMessage): string | null {
         ? true
         : normalizedRole === 'user'
             ? false
-            : hasToolUse || content.some(item => item.type === 'text' && content.length === 1 === false)
+            : hasToolUse || content.some(item => item.type === 'text' && content.length !== 1)
 
     for (const item of content) {
         if (item.type === 'text' && item.text) {
