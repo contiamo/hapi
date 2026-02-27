@@ -1,19 +1,16 @@
 /**
  * Permission Handler for canCallTool integration
- * 
+ *
  * Replaces the MCP permission server with direct SDK integration.
  * Handles tool permission requests, responses, and state management.
  */
 
 import { logger } from "@/lib";
-import { SDKAssistantMessage, SDKMessage, SDKUserMessage } from "../sdk";
 import type { CanUseTool, PermissionResult, PermissionUpdate } from "@anthropic-ai/claude-agent-sdk";
 import { PLAN_FAKE_REJECT, PLAN_FAKE_RESTART } from "../sdk/prompts";
 import { Session } from "../session";
-import { deepEqual } from "@/utils/deepEqual";
 import { EnhancedMode, PermissionMode } from "../loop";
 import { getToolDescriptor } from "./getToolDescriptor";
-import { delay } from "@/utils/time";
 import { isObject } from "@hapi/protocol";
 import {
     BasePermissionHandler,
@@ -83,7 +80,9 @@ function buildRequestUserInputUpdatedInput(input: unknown, answers: unknown): Re
 }
 
 export class PermissionHandler extends BasePermissionHandler<PermissionResponse, PermissionResult> {
-    private toolCalls: { id: string, name: string, input: Record<string, unknown>, used: boolean }[] = [];
+    // Maps toolUseID → toolName for use by isAborted().
+    // Populated in handleToolCall at callback time when the SDK provides both.
+    private activeToolNames = new Map<string, string>();
     private responses = new Map<string, PermissionResponse>();
     private session: Session;
     private onPermissionRequestCallback?: (toolCallId: string) => void;
@@ -92,7 +91,7 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
         super(session.client);
         this.session = session;
     }
-    
+
     /**
      * Set callback to trigger when permission request is made
      */
@@ -231,14 +230,16 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
         // Approval flow
         //
 
-        let toolCallId = this.resolveToolCallId(toolName, input);
-        if (!toolCallId) { // What if we got permission before tool call
-            await delay(1000);
-            toolCallId = this.resolveToolCallId(toolName, input);
-            if (!toolCallId) {
-                throw new Error(`Could not resolve tool call ID for ${toolName}`);
-            }
+        // The SDK provides toolUseID directly — unique per call, guaranteed present.
+        // We record the name here so isAborted() can check it later from tool_result blocks
+        // in user messages where only the ID is available.
+        const toolCallId = options.toolUseID;
+        this.activeToolNames.set(toolCallId, toolName);
+
+        if (options.agentID) {
+            logger.debug(`[permission] Request from sub-agent ${options.agentID}: ${toolName} (${toolCallId})`);
         }
+
         return this.handlePermissionRequest(toolCallId, toolName, input, options.signal, options.suggestions);
     }
 
@@ -276,78 +277,22 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
         });
     }
 
-
     /**
-     * Resolves tool call ID based on tool name and input
-     */
-    private resolveToolCallId(name: string, args: Record<string, unknown>): string | null {
-        // Search in reverse (most recent first)
-        for (let i = this.toolCalls.length - 1; i >= 0; i--) {
-            const call = this.toolCalls[i];
-            if (call.name === name && deepEqual(call.input, args)) {
-                if (call.used) {
-                    return null;
-                }
-                // Found unused match - mark as used and return
-                call.used = true;
-                return call.id;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Handles messages to track tool calls
-     */
-    onMessage(message: SDKMessage): void {
-        if (message.type === 'assistant') {
-            const assistantMsg = message as SDKAssistantMessage;
-            if (assistantMsg.message && assistantMsg.message.content) {
-                for (const block of assistantMsg.message.content) {
-                    if (block.type === 'tool_use') {
-                        this.toolCalls.push({
-                            id: block.id!,
-                            name: block.name!,
-                            input: block.input,
-                            used: false
-                        });
-                    }
-                }
-            }
-        }
-        if (message.type === 'user') {
-            const userMsg = message as SDKUserMessage;
-            if (userMsg.message && userMsg.message.content && Array.isArray(userMsg.message.content)) {
-                for (const block of userMsg.message.content) {
-                    if (block.type === 'tool_result' && block.tool_use_id) {
-                        const toolCall = this.toolCalls.find(tc => tc.id === block.tool_use_id);
-                        if (toolCall && !toolCall.used) {
-                            toolCall.used = true;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Checks if a tool call is rejected
+     * Checks if a tool call is aborted (denied or always-abort tool).
+     * Called from claudeRemote when a tool_result arrives in a user message.
      */
     isAborted(toolCallId: string): boolean {
-
-        // If tool not approved, it's aborted
         if (this.responses.get(toolCallId)?.approved === false) {
             return true;
         }
 
-        // Always abort exit_plan_mode
-        const toolCall = this.toolCalls.find(tc => tc.id === toolCallId);
-        if (toolCall && (toolCall.name === 'exit_plan_mode' || toolCall.name === 'ExitPlanMode')) {
+        // exit_plan_mode is always aborted — the plan handler resolves it with deny
+        // so the SDK loop exits cleanly, but we still need to signal abort here.
+        const name = this.activeToolNames.get(toolCallId);
+        if (name === 'exit_plan_mode' || name === 'ExitPlanMode') {
             return true;
         }
 
-        // Tool call is not aborted
         return false;
     }
 
@@ -385,14 +330,14 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
 
     /**
      * Reset between turns of the same conversation.
-     * Clears per-turn state (tool calls, responses).
+     * Clears per-turn state (active tool names, responses).
      * Session-scoped permissions are tracked by the SDK via updatedPermissions.
      *
      * No pending requests should exist at turn boundaries (claudeRemote has
      * already completed), so we do not cancel them here.
      */
     resetTurn(): void {
-        this.toolCalls = [];
+        this.activeToolNames.clear();
         this.responses.clear();
     }
 
@@ -400,7 +345,7 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
      * Full reset for a genuinely new session (e.g. after /clear).
      */
     reset(): void {
-        this.toolCalls = [];
+        this.activeToolNames.clear();
         this.responses.clear();
 
         this.cancelPendingRequests({

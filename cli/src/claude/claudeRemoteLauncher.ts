@@ -222,7 +222,6 @@ class ClaudeRemoteLauncher {
                 }
             }
             formatClaudeMessageForInk(message, messageBuffer);
-            permissionHandler.onMessage(message);
 
             if (message.type === 'assistant') {
                 const umessage = message as SDKAssistantMessage;
