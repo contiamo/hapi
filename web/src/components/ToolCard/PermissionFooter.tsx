@@ -8,9 +8,8 @@ import { Spinner } from '@/components/Spinner'
 import { useTranslation, type TranslationKey } from '@/lib/use-translation'
 
 function truncatePath(path: string): string {
-    const shortened = path.startsWith('/home/')
-        ? '~/' + path.slice(path.indexOf('/', '/home/'.length) + 1)
-        : path
+    const sep = path.startsWith('/home/') ? path.indexOf('/', '/home/'.length) : -1
+    const shortened = sep !== -1 ? '~/' + path.slice(sep + 1) : path
     if (shortened.length <= 48) return shortened
     const parts = shortened.split('/')
     if (parts.length <= 4) return shortened

@@ -22,7 +22,7 @@ export type PendingPermissionRequest<TResult> = {
     suggestions?: PermissionUpdate[];
     blockedPath?: string;
     decisionReason?: string;
-    agentID?: string;
+    agentID?: string; // metadata only — logged and forwarded to UI, not consulted in response handling
 };
 
 export type PermissionCompletion = {

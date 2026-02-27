@@ -218,6 +218,9 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
         // Handle special cases
         //
 
+        // These fast-paths return before registering into activeToolNames.
+        // isAborted() finding no entry for these IDs correctly returns false — bypassed
+        // tools are not aborted and exit_plan_mode is never bypassed by these guards.
         if (!isQuestionTool && (this.session.getPermissionMode() ?? 'default') === 'bypassPermissions') {
             return { behavior: 'allow', updatedInput: input };
         }
@@ -338,6 +341,10 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
      *
      * No pending requests should exist at turn boundaries (claudeRemote has
      * already completed), so we do not cancel them here.
+     *
+     * responses is batch-cleared here rather than per-entry after isAborted() because
+     * it is only read within the same turn and SDK-guaranteed unique IDs mean there
+     * is no cross-turn collision risk.
      */
     resetTurn(): void {
         this.activeToolNames.clear();
@@ -373,7 +380,7 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
         this.responses.set(response.id, { ...response, receivedAt: Date.now() });
     }
 
-    protected onRequestRegistered(toolCallId: string): void {
+    protected onRequestRegistered(toolCallId: string, _toolName: string, _input: unknown): void {
         if (this.onPermissionRequestCallback) {
             this.onPermissionRequestCallback(toolCallId);
         }
