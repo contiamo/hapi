@@ -7,7 +7,7 @@
 
 import { logger } from "@/lib";
 import { SDKAssistantMessage, SDKMessage, SDKUserMessage } from "../sdk";
-import type { CanUseTool, PermissionResult } from "@anthropic-ai/claude-agent-sdk";
+import type { CanUseTool, PermissionResult, PermissionUpdate } from "@anthropic-ai/claude-agent-sdk";
 import { PLAN_FAKE_REJECT, PLAN_FAKE_RESTART } from "../sdk/prompts";
 import { Session } from "../session";
 import { deepEqual } from "@/utils/deepEqual";
@@ -86,9 +86,6 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
     private toolCalls: { id: string, name: string, input: Record<string, unknown>, used: boolean }[] = [];
     private responses = new Map<string, PermissionResponse>();
     private session: Session;
-    private allowedTools = new Set<string>();
-    private allowedBashLiterals = new Set<string>();
-    private allowedBashPrefixes = new Set<string>();
     private permissionMode: PermissionMode = 'default';
     private onPermissionRequestCallback?: (toolCallId: string) => void;
 
@@ -123,20 +120,6 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
             allowTools: response.allowTools,
             answers: response.answers
         };
-
-        // Update allowed tools
-        if (response.allowTools && response.allowTools.length > 0) {
-            response.allowTools.forEach(tool => {
-                if (isQuestionToolName(tool)) {
-                    return;
-                }
-                if (tool.startsWith('Bash(') || tool === 'Bash') {
-                    this.parseBashPermission(tool);
-                } else {
-                    this.allowedTools.add(tool);
-                }
-            });
-        }
 
         // Update permission mode
         if (response.mode) {
@@ -202,7 +185,19 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
             if (response.message) {
                 this.session.queue.push(response.message, { permissionMode: this.permissionMode });
             }
-            pending.resolve({ behavior: 'allow', updatedInput: (pending.input as Record<string, unknown>) ?? {} });
+
+            // Build updatedPermissions: for "allow for session", pass the SDK's own suggestions
+            // back so the SDK tracks this and won't ask again. For plain approve, no update needed.
+            const updatedPermissions: PermissionUpdate[] | undefined =
+                response.allowTools && response.allowTools.length > 0
+                    ? (pending.suggestions ?? [])
+                    : undefined;
+
+            pending.resolve({
+                behavior: 'allow',
+                updatedInput: (pending.input as Record<string, unknown>) ?? {},
+                updatedPermissions
+            });
         } else {
             // If the user typed a message alongside deny, queue it as a follow-up user turn
             // so Claude responds to the feedback rather than just stopping.
@@ -220,25 +215,6 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
      */
     handleToolCall = async (toolName: string, input: Record<string, unknown>, mode: EnhancedMode, options: Parameters<CanUseTool>[2]): Promise<PermissionResult> => {
         const isQuestionTool = isQuestionToolName(toolName);
-
-        // Check if tool is explicitly allowed
-        if (!isQuestionTool && toolName === 'Bash') {
-            const inputObj = input as { command?: string };
-            if (inputObj?.command) {
-                // Check literal matches
-                if (this.allowedBashLiterals.has(inputObj.command)) {
-                    return { behavior: 'allow', updatedInput: input };
-                }
-                // Check prefix matches
-                for (const prefix of this.allowedBashPrefixes) {
-                    if (inputObj.command.startsWith(prefix)) {
-                        return { behavior: 'allow', updatedInput: input };
-                    }
-                }
-            }
-        } else if (!isQuestionTool && this.allowedTools.has(toolName)) {
-            return { behavior: 'allow', updatedInput: input };
-        }
 
         // Calculate descriptor
         const descriptor = getToolDescriptor(toolName);
@@ -267,7 +243,7 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
                 throw new Error(`Could not resolve tool call ID for ${toolName}`);
             }
         }
-        return this.handlePermissionRequest(toolCallId, toolName, input, options.signal);
+        return this.handlePermissionRequest(toolCallId, toolName, input, options.signal, options.suggestions);
     }
 
     /**
@@ -277,7 +253,8 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
         id: string,
         toolName: string,
         input: unknown,
-        signal: AbortSignal
+        signal: AbortSignal,
+        suggestions?: PermissionUpdate[]
     ): Promise<PermissionResult> {
         return new Promise<PermissionResult>((resolve, reject) => {
             // Set up abort signal handling
@@ -297,41 +274,12 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
                     signal.removeEventListener('abort', abortHandler);
                     reject(error);
                 }
-            });
+            }, suggestions);
 
             logger.debug(`Permission request sent for tool call ${id}: ${toolName}`);
         });
     }
 
-
-    /**
-     * Parses Bash permission strings into literal and prefix sets
-     */
-    private parseBashPermission(permission: string): void {
-        // Ignore plain "Bash"
-        if (permission === 'Bash') {
-            return;
-        }
-
-        // Match Bash(command) or Bash(command:*)
-        const bashPattern = /^Bash\((.+?)\)$/;
-        const match = permission.match(bashPattern);
-        
-        if (!match) {
-            return;
-        }
-
-        const command = match[1];
-        
-        // Check if it's a prefix pattern (ends with :*)
-        if (command.endsWith(':*')) {
-            const prefix = command.slice(0, -2); // Remove :*
-            this.allowedBashPrefixes.add(prefix);
-        } else {
-            // Literal match
-            this.allowedBashLiterals.add(command);
-        }
-    }
 
     /**
      * Resolves tool call ID based on tool name and input
@@ -440,9 +388,9 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
     }
 
     /**
-     * Soft reset between turns of the same conversation.
-     * Clears per-turn state (tool calls, responses) but preserves session-scoped
-     * permissions (allowedTools, allowedBashLiterals, allowedBashPrefixes).
+     * Reset between turns of the same conversation.
+     * Clears per-turn state (tool calls, responses).
+     * Session-scoped permissions are tracked by the SDK via updatedPermissions.
      *
      * No pending requests should exist at turn boundaries (claudeRemote has
      * already completed), so we do not cancel them here.
@@ -454,14 +402,10 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
 
     /**
      * Full reset for a genuinely new session (e.g. after /clear).
-     * Clears all state including session-scoped permissions.
      */
     reset(): void {
         this.toolCalls = [];
         this.responses.clear();
-        this.allowedTools.clear();
-        this.allowedBashLiterals.clear();
-        this.allowedBashPrefixes.clear();
 
         this.cancelPendingRequests({
             completedReason: 'Session switched to local mode',

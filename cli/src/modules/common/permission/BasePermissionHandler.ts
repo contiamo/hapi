@@ -1,5 +1,6 @@
 import type { AgentState } from "@/api/types";
 import type { PermissionMode } from "@hapi/protocol/types";
+import type { PermissionUpdate } from "@anthropic-ai/claude-agent-sdk";
 
 type RpcHandlerManagerLike = {
     registerHandler<TRequest = unknown, TResponse = unknown>(
@@ -35,6 +36,7 @@ export type PendingPermissionRequest<TResult> = {
     reject: (error: Error) => void;
     toolName: string;
     input: unknown;
+    suggestions?: PermissionUpdate[];
 };
 
 export type PermissionCompletion = {
@@ -104,9 +106,10 @@ export abstract class BasePermissionHandler<TResponse extends { id: string }, TR
         id: string,
         toolName: string,
         input: unknown,
-        handlers: { resolve: (value: TResult) => void; reject: (error: Error) => void }
+        handlers: { resolve: (value: TResult) => void; reject: (error: Error) => void },
+        suggestions?: PermissionUpdate[]
     ): void {
-        this.pendingRequests.set(id, { ...handlers, toolName, input });
+        this.pendingRequests.set(id, { ...handlers, toolName, input, suggestions });
         this.onRequestRegistered(id, toolName, input);
         this.client.updateAgentState((currentState) => ({
             ...currentState,
