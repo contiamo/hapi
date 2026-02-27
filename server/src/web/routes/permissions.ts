@@ -6,8 +6,6 @@ import type { SyncEngine } from '../../sync/syncEngine'
 import type { WebAppEnv } from '../middleware/auth'
 import { requireSessionFromParam, requireSyncEngine } from './guards'
 
-const decisionSchema = z.enum(['approved', 'approved_for_session', 'denied', 'abort'])
-
 // Flat format: Record<string, string[]> (AskUserQuestion)
 // Nested format: Record<string, { answers: string[] }> (request_user_input)
 const answersSchema = z.union([
@@ -18,13 +16,13 @@ const answersSchema = z.union([
 const approveBodySchema = z.object({
     mode: PermissionModeSchema.optional(),
     suggestions: z.array(PermissionUpdateSchema).optional(),
-    decision: decisionSchema.optional(),
+    decision: z.enum(['approved', 'denied', 'abort']).optional(),
     answers: answersSchema.optional(),
     message: z.string().optional()
 })
 
 const denyBodySchema = z.object({
-    decision: decisionSchema.optional(),
+    decision: z.enum(['denied', 'abort']).optional(),
     reason: z.string().optional()
 })
 

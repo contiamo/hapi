@@ -381,7 +381,7 @@ export class ApiClient {
         options?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | {
             mode?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan'
             suggestions?: PermissionUpdate[]
-            decision?: 'approved' | 'approved_for_session' | 'denied' | 'abort'
+            decision?: 'approved' | 'denied' | 'abort'
             answers?: Record<string, string[]> | Record<string, { answers: string[] }>
             message?: string
         }
@@ -399,7 +399,7 @@ export class ApiClient {
         sessionId: string,
         requestId: string,
         options?: {
-            decision?: 'approved' | 'approved_for_session' | 'denied' | 'abort'
+            decision?: 'denied' | 'abort'
             reason?: string
         }
     ): Promise<void> {

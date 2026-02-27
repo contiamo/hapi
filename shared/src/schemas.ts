@@ -107,7 +107,7 @@ export const AgentStateCompletedRequestSchema = z.object({
     status: z.enum(['canceled', 'denied', 'approved']),
     reason: z.string().optional(),
     mode: z.string().optional(),
-    decision: z.enum(['approved', 'approved_for_session', 'denied', 'abort']).optional(),
+    decision: z.enum(['approved', 'denied', 'abort']).optional(),
     // Flat format: Record<string, string[]> (AskUserQuestion)
     // Nested format: Record<string, { answers: string[] }> (request_user_input)
     answers: z.union([

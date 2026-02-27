@@ -13,7 +13,6 @@ function formatPermissionSummary(permission: ToolPermission, t: (key: Translatio
 
     if (permission.status === 'approved') {
         if (permission.mode === 'acceptEdits') return t('tool.approvedAllowAllEdits')
-        if (permission.decision === 'approved_for_session') return t('tool.approvedForSession')
         return t('tool.approved')
     }
 
@@ -86,7 +85,7 @@ export function PermissionFooter(props: {
     const permission = props.tool.permission
     const [loading, setLoading] = useState<'allow' | 'deny' | null>(null)
     const [loadingAllEdits, setLoadingAllEdits] = useState(false)
-    const [loadingForSession, setLoadingForSession] = useState(false)
+    const [loadingSaveRule, setLoadingSaveRule] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [message, setMessage] = useState('')
     // Editable rule content for each suggestion (keyed by index)
@@ -114,15 +113,10 @@ export function PermissionFooter(props: {
         || toolName === 'MultiEdit'
         || toolName === 'Write'
         || toolName === 'NotebookEdit'
-    const hideAllowForSession = toolName === 'Edit'
-        || toolName === 'MultiEdit'
-        || toolName === 'Write'
-        || toolName === 'NotebookEdit'
-        || toolName === 'exit_plan_mode'
-        || toolName === 'ExitPlanMode'
 
-    const canAllowForSession = isPending && !hideAllowForSession
     const canAllowAllEdits = isPending && isEditTool
+    // The save-rule button is only meaningful when the SDK provided suggestions
+    const canSaveRule = isPending && !!permission.suggestions?.length
     const trimmedMessage = message.trim()
 
     // Build the (possibly edited) suggestions to send back
@@ -142,29 +136,29 @@ export function PermissionFooter(props: {
     }
 
     const approve = async () => {
-        if (!isPending || loading || loadingAllEdits || loadingForSession) return
+        if (!isPending || loading || loadingAllEdits || loadingSaveRule) return
         setLoading('allow')
         await run(() => props.api.approvePermission(props.sessionId, permission.id, { message: trimmedMessage || undefined }), 'success')
         setLoading(null)
     }
 
     const approveAllEdits = async () => {
-        if (!isPending || loading || loadingAllEdits || loadingForSession) return
+        if (!isPending || loading || loadingAllEdits || loadingSaveRule) return
         setLoadingAllEdits(true)
         await run(() => props.api.approvePermission(props.sessionId, permission.id, { mode: 'acceptEdits', message: trimmedMessage || undefined }), 'success')
         setLoadingAllEdits(false)
     }
 
-    const approveForSession = async () => {
-        if (!canAllowForSession || loading || loadingAllEdits || loadingForSession) return
-        setLoadingForSession(true)
+    const saveRule = async () => {
+        if (!canSaveRule || loading || loadingAllEdits || loadingSaveRule) return
+        setLoadingSaveRule(true)
         const suggestions = buildEditedSuggestions()
-        await run(() => props.api.approvePermission(props.sessionId, permission.id, { suggestions, decision: 'approved_for_session', message: trimmedMessage || undefined }), 'success')
-        setLoadingForSession(false)
+        await run(() => props.api.approvePermission(props.sessionId, permission.id, { suggestions, message: trimmedMessage || undefined }), 'success')
+        setLoadingSaveRule(false)
     }
 
     const deny = async () => {
-        if (!isPending || loading || loadingAllEdits || loadingForSession) return
+        if (!isPending || loading || loadingAllEdits || loadingSaveRule) return
         setLoading('deny')
         await run(() => props.api.denyPermission(props.sessionId, permission.id, { reason: trimmedMessage || undefined }), 'success')
         setLoading(null)
@@ -183,7 +177,7 @@ export function PermissionFooter(props: {
         )
     }
 
-    const isActing = loading !== null || loadingAllEdits || loadingForSession
+    const isActing = loading !== null || loadingAllEdits || loadingSaveRule
     const suggestions = permission.suggestions
     const summary = formatPermissionSummary(permission, t)
 
@@ -207,10 +201,10 @@ export function PermissionFooter(props: {
                 onChange={(e) => setMessage(e.target.value)}
             />
 
-            {canAllowForSession && suggestions?.length ? (
+            {canSaveRule ? (
                 <div className="mt-2 space-y-1">
                     <div className="text-xs text-[var(--app-hint)]">Rule to save:</div>
-                    {suggestions.map((s, i) => {
+                    {suggestions!.map((s, i) => {
                         if (s.type !== 'addRules' && s.type !== 'replaceRules' && s.type !== 'removeRules') {
                             return (
                                 <div key={i} className="flex items-center gap-2 rounded-md border border-[var(--app-border)] px-2 py-1.5">
@@ -247,13 +241,13 @@ export function PermissionFooter(props: {
                     disabled={props.disabled || isActing}
                     onClick={approve}
                 />
-                {canAllowForSession ? (
+                {canSaveRule ? (
                     <PermissionRowButton
-                        label={t('tool.allowForSession')}
+                        label={`Allow for ${destinationLabel(suggestions![0].destination)}`}
                         tone="neutral"
-                        loading={loadingForSession}
+                        loading={loadingSaveRule}
                         disabled={props.disabled || isActing}
-                        onClick={approveForSession}
+                        onClick={saveRule}
                     />
                 ) : null}
                 {canAllowAllEdits ? (

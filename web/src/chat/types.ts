@@ -25,7 +25,7 @@ export type ToolResultPermission = {
     date: number
     result: 'approved' | 'denied'
     mode?: string
-    decision?: 'approved' | 'approved_for_session' | 'denied' | 'abort'
+    decision?: 'approved' | 'denied' | 'abort'
 }
 
 export type ToolUse = {
@@ -93,7 +93,7 @@ export type ToolPermission = {
     reason?: string
     mode?: string
     suggestions?: PermissionUpdate[]
-    decision?: 'approved' | 'approved_for_session' | 'denied' | 'abort'
+    decision?: 'approved' | 'denied' | 'abort'
     answers?: Record<string, string[]> | Record<string, { answers: string[] }>
     date?: number
     createdAt?: number | null

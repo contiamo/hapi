@@ -10,7 +10,7 @@ function normalizeToolResultPermissions(value: unknown): ToolResultPermission | 
 
     const mode = asString(value.mode) ?? undefined
     const decision = value.decision
-    const normalizedDecision = decision === 'approved' || decision === 'approved_for_session' || decision === 'denied' || decision === 'abort'
+    const normalizedDecision = decision === 'approved' || decision === 'denied' || decision === 'abort'
         ? decision
         : undefined
 

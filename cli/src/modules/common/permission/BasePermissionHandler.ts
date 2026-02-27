@@ -1,5 +1,4 @@
 import type { AgentState } from "@/api/types";
-import type { PermissionMode } from "@hapi/protocol/types";
 import type { PermissionUpdate } from "@anthropic-ai/claude-agent-sdk";
 
 type RpcHandlerManagerLike = {
@@ -9,22 +8,6 @@ type RpcHandlerManagerLike = {
     ): void;
 };
 
-export type AutoApprovalDecision = 'approved' | 'approved_for_session';
-
-type AutoApprovalRuleSet = {
-    alwaysToolNameHints?: string[];
-    alwaysToolIdHints?: string[];
-    writeToolNameHints?: string[];
-};
-
-const AUTO_APPROVE_TOOL_NAME_HINTS = [
-    'change_title',
-    'happy__change_title',
-    'think',
-    'save_memory'
-];
-const AUTO_APPROVE_TOOL_ID_HINTS = ['change_title', 'save_memory'];
-const AUTO_APPROVE_WRITE_TOOL_HINTS = ['write', 'edit', 'create', 'delete', 'patch', 'fs-edit'];
 
 export type PermissionHandlerClient = {
     rpcHandlerManager: RpcHandlerManagerLike;
@@ -43,7 +26,7 @@ export type PermissionCompletion = {
     status: 'approved' | 'denied' | 'canceled';
     reason?: string;
     mode?: string;
-    decision?: 'approved' | 'approved_for_session' | 'denied' | 'abort';
+    decision?: 'approved' | 'denied' | 'abort';
     answers?: Record<string, string[]> | Record<string, { answers: string[] }>;
 };
 
@@ -73,32 +56,6 @@ export abstract class BasePermissionHandler<TResponse extends { id: string }, TR
     }
 
     protected onResponseReceived(_response: TResponse): void {
-    }
-
-    protected resolveAutoApprovalDecision(
-        mode: PermissionMode | undefined,
-        toolName: string,
-        toolCallId: string,
-        ruleOverrides?: AutoApprovalRuleSet
-    ): AutoApprovalDecision | null {
-        const rules = {
-            alwaysToolNameHints: ruleOverrides?.alwaysToolNameHints ?? AUTO_APPROVE_TOOL_NAME_HINTS,
-            alwaysToolIdHints: ruleOverrides?.alwaysToolIdHints ?? AUTO_APPROVE_TOOL_ID_HINTS,
-            writeToolNameHints: ruleOverrides?.writeToolNameHints ?? AUTO_APPROVE_WRITE_TOOL_HINTS
-        };
-
-        const lowerTool = toolName.toLowerCase();
-        const lowerId = toolCallId.toLowerCase();
-
-        if (rules.alwaysToolNameHints.some((name) => lowerTool.includes(name))) {
-            return 'approved';
-        }
-
-        if (rules.alwaysToolIdHints.some((name) => lowerId.includes(name))) {
-            return 'approved';
-        }
-
-        return null;
     }
 
     protected addPendingRequest(
