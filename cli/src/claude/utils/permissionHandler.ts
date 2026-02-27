@@ -86,7 +86,6 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
     private toolCalls: { id: string, name: string, input: Record<string, unknown>, used: boolean }[] = [];
     private responses = new Map<string, PermissionResponse>();
     private session: Session;
-    private permissionMode: PermissionMode = 'default';
     private onPermissionRequestCallback?: (toolCallId: string) => void;
 
     constructor(session: Session) {
@@ -102,7 +101,6 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
     }
 
     handleModeChange(mode: PermissionMode) {
-        this.permissionMode = mode;
         this.session.setPermissionMode(mode);
     }
 
@@ -122,7 +120,6 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
 
         // Update permission mode
         if (response.mode) {
-            this.permissionMode = response.mode;
             this.session.setPermissionMode(response.mode);
         }
 
@@ -182,7 +179,7 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
             // We use only permissionMode here; model/fallback inherit from the queue consumer's
             // current mode rather than being explicitly forwarded.
             if (response.message) {
-                this.session.queue.push(response.message, { permissionMode: this.permissionMode });
+                this.session.queue.push(response.message, { permissionMode: (this.session.getPermissionMode() ?? 'default') });
             }
 
             // Build updatedPermissions: if the user confirmed suggestions (possibly edited),
@@ -201,7 +198,7 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
             // If the user typed a message alongside deny, queue it as a follow-up user turn
             // so Claude responds to the feedback rather than just stopping.
             if (response.reason) {
-                this.session.queue.push(response.reason, { permissionMode: this.permissionMode });
+                this.session.queue.push(response.reason, { permissionMode: (this.session.getPermissionMode() ?? 'default') });
             }
             pending.resolve({ behavior: 'deny', message: `The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed.` });
         }
@@ -222,11 +219,11 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
         // Handle special cases
         //
 
-        if (!isQuestionTool && this.permissionMode === 'bypassPermissions') {
+        if (!isQuestionTool && (this.session.getPermissionMode() ?? 'default') === 'bypassPermissions') {
             return { behavior: 'allow', updatedInput: input };
         }
 
-        if (!isQuestionTool && this.permissionMode === 'acceptEdits' && descriptor.edit) {
+        if (!isQuestionTool && (this.session.getPermissionMode() ?? 'default') === 'acceptEdits' && descriptor.edit) {
             return { behavior: 'allow', updatedInput: input };
         }
 
