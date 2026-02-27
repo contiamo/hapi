@@ -231,6 +231,7 @@ export default {
   'tool.requestUserInput.textPlaceholder': '输入您的答案…',
   'tool.requestUserInput.noteLabel': '补充说明（可选）',
   'tool.requestUserInput.notePlaceholder': '添加备注…',
+  'tool.messageHint': '添加消息（可选）…',
 
   // Composer buttons
   'composer.settings': '设置',

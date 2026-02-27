@@ -19,11 +19,13 @@ const approveBodySchema = z.object({
     mode: PermissionModeSchema.optional(),
     allowTools: z.array(z.string()).optional(),
     decision: decisionSchema.optional(),
-    answers: answersSchema.optional()
+    answers: answersSchema.optional(),
+    message: z.string().optional()
 })
 
 const denyBodySchema = z.object({
-    decision: decisionSchema.optional()
+    decision: decisionSchema.optional(),
+    reason: z.string().optional()
 })
 
 export function createPermissionsRoutes(getSyncEngine: () => SyncEngine | null): Hono<WebAppEnv> {
@@ -63,7 +65,8 @@ export function createPermissionsRoutes(getSyncEngine: () => SyncEngine | null):
         const allowTools = parsed.data.allowTools
         const decision = parsed.data.decision
         const answers = parsed.data.answers
-        await engine.approvePermission(sessionId, requestId, mode, allowTools, decision, answers)
+        const message = parsed.data.message
+        await engine.approvePermission(sessionId, requestId, mode, allowTools, decision, answers, message)
         return c.json({ ok: true })
     })
 
@@ -92,7 +95,7 @@ export function createPermissionsRoutes(getSyncEngine: () => SyncEngine | null):
             return c.json({ error: 'Invalid body' }, 400)
         }
 
-        await engine.denyPermission(sessionId, requestId, parsed.data.decision)
+        await engine.denyPermission(sessionId, requestId, parsed.data.decision, parsed.data.reason)
         return c.json({ ok: true })
     })
 

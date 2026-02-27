@@ -94,6 +94,7 @@ export function PermissionFooter(props: {
     const [loadingAllEdits, setLoadingAllEdits] = useState(false)
     const [loadingForSession, setLoadingForSession] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [message, setMessage] = useState('')
 
     if (!permission) return null
 
@@ -127,18 +128,19 @@ export function PermissionFooter(props: {
 
     const canAllowForSession = isPending && !hideAllowForSession
     const canAllowAllEdits = isPending && isEditTool
+    const trimmedMessage = message.trim()
 
     const approve = async () => {
         if (!isPending || loading || loadingAllEdits || loadingForSession) return
         setLoading('allow')
-        await run(() => props.api.approvePermission(props.sessionId, permission.id), 'success')
+        await run(() => props.api.approvePermission(props.sessionId, permission.id, undefined, trimmedMessage || undefined), 'success')
         setLoading(null)
     }
 
     const approveAllEdits = async () => {
         if (!isPending || loading || loadingAllEdits || loadingForSession) return
         setLoadingAllEdits(true)
-        await run(() => props.api.approvePermission(props.sessionId, permission.id, 'acceptEdits'), 'success')
+        await run(() => props.api.approvePermission(props.sessionId, permission.id, 'acceptEdits', trimmedMessage || undefined), 'success')
         setLoadingAllEdits(false)
     }
 
@@ -147,14 +149,14 @@ export function PermissionFooter(props: {
         setLoadingForSession(true)
         const command = toolName === 'Bash' ? getInputStringAny(props.tool.input, ['command', 'cmd']) : null
         const toolIdentifier = toolName === 'Bash' && command ? `Bash(${command})` : toolName
-        await run(() => props.api.approvePermission(props.sessionId, permission.id, { allowTools: [toolIdentifier] }), 'success')
+        await run(() => props.api.approvePermission(props.sessionId, permission.id, { allowTools: [toolIdentifier] }, trimmedMessage || undefined), 'success')
         setLoadingForSession(false)
     }
 
     const deny = async () => {
         if (!isPending || loading || loadingAllEdits || loadingForSession) return
         setLoading('deny')
-        await run(() => props.api.denyPermission(props.sessionId, permission.id), 'success')
+        await run(() => props.api.denyPermission(props.sessionId, permission.id, { reason: trimmedMessage || undefined }), 'success')
         setLoading(null)
     }
 
@@ -171,6 +173,8 @@ export function PermissionFooter(props: {
         )
     }
 
+    const isActing = loading !== null || loadingAllEdits || loadingForSession
+
     return (
         <div className="mt-2">
             <div className="text-xs text-[var(--app-hint)]">{summary}</div>
@@ -181,12 +185,21 @@ export function PermissionFooter(props: {
                 </div>
             ) : null}
 
-            <div className="mt-2 flex flex-col gap-1">
+            <textarea
+                className="mt-2 w-full resize-none rounded-md border border-[var(--app-border)] bg-transparent px-2 py-1.5 text-sm placeholder:text-[var(--app-hint)] focus:outline-none focus:ring-1 focus:ring-[var(--app-border)] disabled:opacity-50"
+                rows={2}
+                placeholder={t('tool.messageHint')}
+                value={message}
+                disabled={props.disabled || isActing}
+                onChange={(e) => setMessage(e.target.value)}
+            />
+
+            <div className="mt-1 flex flex-col gap-1">
                 <PermissionRowButton
                     label={t('tool.allow')}
                     tone="allow"
                     loading={loading === 'allow'}
-                    disabled={props.disabled || loading !== null || loadingAllEdits || loadingForSession}
+                    disabled={props.disabled || isActing}
                     onClick={approve}
                 />
                 {canAllowForSession ? (
@@ -194,7 +207,7 @@ export function PermissionFooter(props: {
                         label={t('tool.allowForSession')}
                         tone="neutral"
                         loading={loadingForSession}
-                        disabled={props.disabled || loading !== null || loadingAllEdits || loadingForSession}
+                        disabled={props.disabled || isActing}
                         onClick={approveForSession}
                     />
                 ) : null}
@@ -203,7 +216,7 @@ export function PermissionFooter(props: {
                         label={t('tool.allowAll')}
                         tone="neutral"
                         loading={loadingAllEdits}
-                        disabled={props.disabled || loading !== null || loadingAllEdits || loadingForSession}
+                        disabled={props.disabled || isActing}
                         onClick={approveAllEdits}
                     />
                 ) : null}
@@ -211,7 +224,7 @@ export function PermissionFooter(props: {
                     label={t('tool.deny')}
                     tone="deny"
                     loading={loading === 'deny'}
-                    disabled={props.disabled || loading !== null || loadingAllEdits || loadingForSession}
+                    disabled={props.disabled || isActing}
                     onClick={deny}
                 />
             </div>

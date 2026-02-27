@@ -372,15 +372,18 @@ class ClaudeRemoteLauncher {
                 logger.debug('[remote]: launch');
                 messageBuffer.addMessage('═'.repeat(40), 'status');
 
-                const isNewSession = session.sessionId !== previousSessionId;
+                // A null session ID means /clear was used — treat as a fresh session.
+                // A non-null but changed ID just means Claude resumed with a new ID — same conversation.
+                const isNewSession = session.sessionId === null;
                 if (isNewSession) {
                     messageBuffer.addMessage('Starting new Claude session...', 'status');
                     permissionHandler.reset();
                     sdkToLogConverter.resetParentChain();
-                    logger.debug(`[remote]: New session detected (previous: ${previousSessionId}, current: ${session.sessionId})`);
+                    logger.debug(`[remote]: New session (after /clear), previous: ${previousSessionId}`);
                 } else {
+                    permissionHandler.resetTurn();
                     messageBuffer.addMessage('Continuing Claude session...', 'status');
-                    logger.debug(`[remote]: Continuing existing session: ${session.sessionId}`);
+                    logger.debug(`[remote]: Continuing session: ${session.sessionId}`);
                 }
 
                 previousSessionId = session.sessionId;
@@ -482,7 +485,7 @@ class ClaudeRemoteLauncher {
                     this.abortFuture?.resolve(undefined);
                     this.abortFuture = null;
                     logger.debug('[remote]: launch done');
-                    permissionHandler.reset();
+                    permissionHandler.resetTurn();
                     modeHash = null;
                     mode = null;
                 }

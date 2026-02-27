@@ -229,6 +229,7 @@ export default {
   'tool.requestUserInput.textPlaceholder': 'Type your answer…',
   'tool.requestUserInput.noteLabel': 'Additional note (optional)',
   'tool.requestUserInput.notePlaceholder': 'Add a note…',
+  'tool.messageHint': 'Add a message (optional)…',
 
   // Composer buttons
   'composer.settings': 'Settings',

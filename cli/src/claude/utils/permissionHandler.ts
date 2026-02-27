@@ -28,6 +28,7 @@ interface PermissionResponse {
     mode?: PermissionMode;
     allowTools?: string[];
     answers?: Record<string, string[]> | Record<string, { answers: string[] }>;
+    message?: string;
     receivedAt?: number;
 }
 
@@ -194,11 +195,19 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
         }
 
         // Handle default case for all other tools
-        const result: PermissionResult = response.approved
-            ? { behavior: 'allow', updatedInput: (pending.input as Record<string, unknown>) ?? {} }
-            : { behavior: 'deny', message: response.reason || `The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed.` };
+        if (response.approved) {
+            // If the user attached a message alongside their approval, queue it as follow-up input.
+            if (response.message) {
+                this.session.queue.push(response.message, { permissionMode: this.permissionMode });
+            }
+            pending.resolve({ behavior: 'allow', updatedInput: (pending.input as Record<string, unknown>) ?? {} });
+        } else {
+            const denyMsg = response.reason
+                || response.message
+                || `The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed.`;
+            pending.resolve({ behavior: 'deny', message: denyMsg });
+        }
 
-        pending.resolve(result);
         return completion;
     }
 
@@ -427,7 +436,23 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
     }
 
     /**
-     * Resets all state for new sessions
+     * Soft reset between turns of the same conversation.
+     * Clears per-turn state (tool calls, responses) but preserves session-scoped
+     * permissions (allowedTools, allowedBashLiterals, allowedBashPrefixes).
+     */
+    resetTurn(): void {
+        this.toolCalls = [];
+        this.responses.clear();
+
+        this.cancelPendingRequests({
+            completedReason: 'Turn completed',
+            rejectMessage: 'Turn reset'
+        });
+    }
+
+    /**
+     * Full reset for a genuinely new session (e.g. after /clear).
+     * Clears all state including session-scoped permissions.
      */
     reset(): void {
         this.toolCalls = [];
