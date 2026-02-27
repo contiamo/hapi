@@ -232,6 +232,8 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
             return { behavior: 'allow', updatedInput: input };
         }
 
+        logger.debug(`[PermissionHandler] suggestions for ${toolName}:`, JSON.stringify(options.suggestions));
+
         //
         // Approval flow
         //
