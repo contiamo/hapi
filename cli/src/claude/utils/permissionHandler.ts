@@ -196,7 +196,7 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
 
             pending.resolve({
                 behavior: 'allow',
-                updatedInput: (pending.input as Record<string, unknown>) ?? {},
+                updatedInput: pending.input as Record<string, unknown>,
                 updatedPermissions
             });
         } else {
@@ -214,7 +214,7 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
     /**
      * Creates the canCallTool callback for the SDK
      */
-    handleToolCall = async (toolName: string, input: Record<string, unknown>, mode: EnhancedMode, options: Parameters<CanUseTool>[2]): Promise<PermissionResult> => {
+    handleToolCall = async (toolName: string, input: Record<string, unknown>, _mode: EnhancedMode, options: Parameters<CanUseTool>[2]): Promise<PermissionResult> => {
         const isQuestionTool = isQuestionToolName(toolName);
 
         // Calculate descriptor
@@ -409,7 +409,7 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
         this.responses.clear();
 
         this.cancelPendingRequests({
-            completedReason: 'Session switched to local mode',
+            completedReason: 'Session reset',
             rejectMessage: 'Session reset'
         });
     }

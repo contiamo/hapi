@@ -372,8 +372,7 @@ class ClaudeRemoteLauncher {
                 messageBuffer.addMessage('═'.repeat(40), 'status');
 
                 // session.sessionId is null only after /clear (clearSessionId() was called).
-                // A non-null ID means this is a resume of the same conversation — preserve
-                // session-scoped permissions (allowedTools etc.) across turns.
+                // A non-null ID means this is a resume of the same conversation.
                 if (session.sessionId === null) {
                     messageBuffer.addMessage('Starting new Claude session...', 'status');
                     permissionHandler.reset();
