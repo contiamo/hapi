@@ -72,6 +72,7 @@ function arePermissionsEqual(left?: ToolPermission, right?: ToolPermission): boo
         && left.date === right.date
         && left.createdAt === right.createdAt
         && left.completedAt === right.completedAt
+        && left.suggestions === right.suggestions
         && areAnswersEqual(left.answers, right.answers)
 }
 

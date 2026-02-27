@@ -32,15 +32,8 @@ const DESTINATION_LABELS: Record<string, string> = {
 }
 
 function formatSuggestionLabel(suggestion: PermissionUpdate): string {
-    if (suggestion.type === 'addRules' || suggestion.type === 'replaceRules' || suggestion.type === 'removeRules') {
-        return suggestion.rules.map(r => r.ruleContent ? `${r.toolName}(${r.ruleContent})` : r.toolName).join(', ')
-    }
-    if (suggestion.type === 'setMode') {
-        return `Mode: ${suggestion.mode}`
-    }
-    if (suggestion.type === 'addDirectories' || suggestion.type === 'removeDirectories') {
-        return suggestion.directories.join(', ')
-    }
+    if (suggestion.type === 'setMode') return `Mode: ${suggestion.mode}`
+    if (suggestion.type === 'addDirectories' || suggestion.type === 'removeDirectories') return suggestion.directories.join(', ')
     return ''
 }
 
@@ -101,7 +94,6 @@ export function PermissionFooter(props: {
 
     if (!permission) return null
 
-    const summary = formatPermissionSummary(permission, t)
     const isPending = permission.status === 'pending'
 
     const run = async (action: () => Promise<void>, hapticType: 'success' | 'error') => {
@@ -141,9 +133,10 @@ export function PermissionFooter(props: {
             if (s.type !== 'addRules' && s.type !== 'replaceRules' && s.type !== 'removeRules') return s
             const edited = editedRules[i]
             if (edited === undefined) return s
+            // The UI shows one input for rules[0]; only update that entry
             return {
                 ...s,
-                rules: s.rules.map(r => ({ ...r, ruleContent: edited }))
+                rules: s.rules.map((r, j) => j === 0 ? { ...r, ruleContent: edited } : r)
             }
         })
     }
@@ -166,7 +159,7 @@ export function PermissionFooter(props: {
         if (!canAllowForSession || loading || loadingAllEdits || loadingForSession) return
         setLoadingForSession(true)
         const suggestions = buildEditedSuggestions()
-        await run(() => props.api.approvePermission(props.sessionId, permission.id, { suggestions, message: trimmedMessage || undefined }), 'success')
+        await run(() => props.api.approvePermission(props.sessionId, permission.id, { suggestions, decision: 'approved_for_session', message: trimmedMessage || undefined }), 'success')
         setLoadingForSession(false)
     }
 
@@ -192,6 +185,7 @@ export function PermissionFooter(props: {
 
     const isActing = loading !== null || loadingAllEdits || loadingForSession
     const suggestions = permission.suggestions
+    const summary = formatPermissionSummary(permission, t)
 
     return (
         <div className="mt-2">
