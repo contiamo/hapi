@@ -1,3 +1,6 @@
+// Note: the SDK also defines 'dontAsk' (silent deny for anything not pre-approved).
+// We intentionally omit it here — it is better suited for sub-agent contexts where
+// a parent agent controls permissions programmatically, not for the human-facing UI.
 export const CLAUDE_PERMISSION_MODES = ['default', 'acceptEdits', 'bypassPermissions', 'plan'] as const
 export type ClaudePermissionMode = typeof CLAUDE_PERMISSION_MODES[number]
 
