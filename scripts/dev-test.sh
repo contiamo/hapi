@@ -130,8 +130,8 @@ build_from_source() {
     bun run build:single-exe || true
 
     # Verify build succeeded
-    if [ ! -f "$PROJECT_ROOT/cli/dist-exe/bun-linux-x64/hapi" ]; then
-        print_error "Build failed - binary not found at cli/dist-exe/bun-linux-x64/hapi"
+    if [ ! -f "$PROJECT_ROOT/cli/dist-exe/bun-linux-$(uname -m | sed 's/aarch64/arm64/' | sed 's/x86_64/x64/')/hapi" ]; then
+        print_error "Build failed - binary not found at cli/dist-exe/bun-linux-$(uname -m | sed 's/aarch64/arm64/' | sed 's/x86_64/x64/')/hapi"
         exit 1
     fi
 
@@ -189,9 +189,11 @@ main() {
     fi
 
     # Find binary
+    local arch
+    arch=$(uname -m | sed 's/aarch64/arm64/' | sed 's/x86_64/x64/')
     local binary_path=""
-    if [ -f "$PROJECT_ROOT/cli/dist-exe/bun-linux-x64/hapi" ]; then
-        binary_path="$PROJECT_ROOT/cli/dist-exe/bun-linux-x64/hapi"
+    if [ -f "$PROJECT_ROOT/cli/dist-exe/bun-linux-${arch}/hapi" ]; then
+        binary_path="$PROJECT_ROOT/cli/dist-exe/bun-linux-${arch}/hapi"
     elif [ -f "$PROJECT_ROOT/cli/dist/hapi" ]; then
         binary_path="$PROJECT_ROOT/cli/dist/hapi"
     else
