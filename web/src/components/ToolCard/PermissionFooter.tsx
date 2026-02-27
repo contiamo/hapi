@@ -7,6 +7,16 @@ import { usePlatform } from '@/hooks/usePlatform'
 import { Spinner } from '@/components/Spinner'
 import { useTranslation, type TranslationKey } from '@/lib/use-translation'
 
+function truncatePath(path: string): string {
+    const shortened = path.startsWith('/home/')
+        ? '~/' + path.slice(path.indexOf('/', '/home/'.length) + 1)
+        : path
+    if (shortened.length <= 48) return shortened
+    const parts = shortened.split('/')
+    if (parts.length <= 4) return shortened
+    return `${parts.slice(0, 2).join('/')}/.../${parts.slice(-2).join('/')}`
+}
+
 function formatPermissionSummary(permission: ToolPermission, t: (key: TranslationKey) => string): string {
     if (permission.status === 'pending') return t('tool.waitingForApproval')
     if (permission.status === 'canceled') return permission.reason ? `${t('tool.canceled')}: ${permission.reason}` : t('tool.canceled')
@@ -183,6 +193,19 @@ export function PermissionFooter(props: {
 
     return (
         <div className="mt-2">
+            {(permission.decisionReason || permission.blockedPath) ? (
+                <div className="mb-2 flex flex-col gap-1 rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-2 py-1.5">
+                    {permission.decisionReason ? (
+                        <p className="text-xs text-[var(--app-fg)]">{permission.decisionReason}</p>
+                    ) : null}
+                    {permission.blockedPath ? (
+                        <code className="break-all font-mono text-xs text-[var(--app-hint)]">
+                            {truncatePath(permission.blockedPath)}
+                        </code>
+                    ) : null}
+                </div>
+            ) : null}
+
             <div className="text-xs text-[var(--app-hint)]">{summary}</div>
 
             {error ? (

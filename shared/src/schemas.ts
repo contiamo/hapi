@@ -94,7 +94,10 @@ export const AgentStateRequestSchema = z.object({
     tool: z.string(),
     arguments: z.unknown(),
     createdAt: z.number().nullish(),
-    suggestions: z.array(PermissionUpdateSchema).optional()
+    suggestions: z.array(PermissionUpdateSchema).optional(),
+    blockedPath: z.string().optional(),
+    decisionReason: z.string().optional(),
+    agentID: z.string().optional()
 })
 
 export type AgentStateRequest = z.infer<typeof AgentStateRequestSchema>
@@ -113,7 +116,10 @@ export const AgentStateCompletedRequestSchema = z.object({
     answers: z.union([
         z.record(z.string(), z.array(z.string())),
         z.record(z.string(), z.object({ answers: z.array(z.string()) }))
-    ]).optional()
+    ]).optional(),
+    blockedPath: z.string().optional(),
+    decisionReason: z.string().optional(),
+    agentID: z.string().optional()
 })
 
 export type AgentStateCompletedRequest = z.infer<typeof AgentStateCompletedRequestSchema>

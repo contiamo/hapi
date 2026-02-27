@@ -98,6 +98,8 @@ export type ToolPermission = {
     date?: number
     createdAt?: number | null
     completedAt?: number | null
+    blockedPath?: string
+    decisionReason?: string
 }
 
 export type ChatToolCall = {

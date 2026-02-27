@@ -20,6 +20,9 @@ export type PendingPermissionRequest<TResult> = {
     toolName: string;
     input: unknown;
     suggestions?: PermissionUpdate[];
+    blockedPath?: string;
+    decisionReason?: string;
+    agentID?: string;
 };
 
 export type PermissionCompletion = {
@@ -63,9 +66,12 @@ export abstract class BasePermissionHandler<TResponse extends { id: string }, TR
         toolName: string,
         input: unknown,
         handlers: { resolve: (value: TResult) => void; reject: (error: Error) => void },
-        suggestions?: PermissionUpdate[]
+        suggestions?: PermissionUpdate[],
+        blockedPath?: string,
+        decisionReason?: string,
+        agentID?: string
     ): void {
-        this.pendingRequests.set(id, { ...handlers, toolName, input, suggestions });
+        this.pendingRequests.set(id, { ...handlers, toolName, input, suggestions, blockedPath, decisionReason, agentID });
         this.onRequestRegistered(id, toolName, input);
         this.client.updateAgentState((currentState) => ({
             ...currentState,
@@ -75,7 +81,10 @@ export abstract class BasePermissionHandler<TResponse extends { id: string }, TR
                     tool: toolName,
                     arguments: input,
                     createdAt: Date.now(),
-                    suggestions
+                    suggestions,
+                    blockedPath,
+                    decisionReason,
+                    agentID
                 }
             }
         }));

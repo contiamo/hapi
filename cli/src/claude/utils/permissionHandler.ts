@@ -240,7 +240,7 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
             logger.debug(`[permission] Request from sub-agent ${options.agentID}: ${toolName} (${toolCallId})`);
         }
 
-        return this.handlePermissionRequest(toolCallId, toolName, input, options.signal, options.suggestions);
+        return this.handlePermissionRequest(toolCallId, toolName, input, options.signal, options.suggestions, options.blockedPath, options.decisionReason, options.agentID);
     }
 
     /**
@@ -251,7 +251,10 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
         toolName: string,
         input: unknown,
         signal: AbortSignal,
-        suggestions?: PermissionUpdate[]
+        suggestions?: PermissionUpdate[],
+        blockedPath?: string,
+        decisionReason?: string,
+        agentID?: string
     ): Promise<PermissionResult> {
         return new Promise<PermissionResult>((resolve, reject) => {
             // Set up abort signal handling
@@ -271,7 +274,7 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
                     signal.removeEventListener('abort', abortHandler);
                     reject(error);
                 }
-            }, suggestions);
+            }, suggestions, blockedPath, decisionReason, agentID);
 
             logger.debug(`Permission request sent for tool call ${id}: ${toolName}`);
         });
