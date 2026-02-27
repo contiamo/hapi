@@ -1,5 +1,5 @@
 import { EnhancedMode } from "./loop";
-import { query, type QueryOptions as Options, type SDKMessage, type SDKSystemMessage, AbortError, type SDKUserMessage, type SDKResultSuccess } from '@/claude/sdk'
+import { query, type QueryOptions as Options, type SDKMessage, AbortError, type SDKUserMessage } from '@/claude/sdk'
 import { claudeCheckSession } from "./utils/claudeCheckSession";
 import { join } from 'node:path';
 import { parseSpecialCommand } from "@/parsers/specialCommands";
@@ -171,17 +171,16 @@ export async function claudeRemote(opts: ClaudeRemoteOptions) {
         }
     };
 
-    // Push initial message
-    // The SDK's SDKUserMessage output format has metadata fields (parent_tool_use_id, session_id),
-    // but the subprocess only needs type+message when receiving user input over stream-json stdin.
+    // Push initial message.
+    // SDKUserMessage requires parent_tool_use_id and session_id, which are output-direction
+    // metadata the SDK subprocess ignores on received input — null and '' are safe placeholders.
     let messages = new PushableAsyncIterable<SDKUserMessage>();
     messages.push({
         type: 'user',
-        message: {
-            role: 'user',
-            content: initial.message,
-        },
-    } as SDKUserMessage);
+        message: { role: 'user', content: initial.message },
+        parent_tool_use_id: null,
+        session_id: '',
+    });
 
     // Start the loop
     const response = query({
@@ -204,16 +203,14 @@ export async function claudeRemote(opts: ClaudeRemoteOptions) {
                 // Start thinking when session initializes
                 updateThinking(true);
 
-                const systemInit = message as SDKSystemMessage;
-
                 // Session id is still in memory, wait until session file is written to disk
                 // Start a watcher for to detect the session id
-                if (systemInit.session_id) {
-                    logger.debug(`[claudeRemote] Waiting for session file to be written to disk: ${systemInit.session_id}`);
+                if (message.session_id) {
+                    logger.debug(`[claudeRemote] Waiting for session file to be written to disk: ${message.session_id}`);
                     const projectDir = getProjectPath(opts.path);
-                    const found = await awaitFileExist(join(projectDir, `${systemInit.session_id}.jsonl`));
-                    logger.debug(`[claudeRemote] Session file found: ${systemInit.session_id} ${found}`);
-                    opts.onSessionFound(systemInit.session_id);
+                    const found = await awaitFileExist(join(projectDir, `${message.session_id}.jsonl`));
+                    logger.debug(`[claudeRemote] Session file found: ${message.session_id} ${found}`);
+                    opts.onSessionFound(message.session_id);
                 }
             }
 
@@ -237,11 +234,11 @@ export async function claudeRemote(opts: ClaudeRemoteOptions) {
                 // If the session is corrupted, exit cleanly without calling nextMessage().
                 // Feeding another message into the same broken session would trigger
                 // the same 400 error again immediately.
-                const resultMsg = message as SDKResultSuccess;
                 if (
-                    resultMsg.is_error &&
-                    typeof resultMsg.result === 'string' &&
-                    CORRUPTION_ERRORS.some((e) => (resultMsg.result as string).includes(e))
+                    message.subtype === 'success' &&
+                    message.is_error &&
+                    typeof message.result === 'string' &&
+                    CORRUPTION_ERRORS.some((e) => (message.result as string).includes(e))
                 ) {
                     logger.warn('[claudeRemote] Corrupted session detected, exiting early');
                     messages.end();
@@ -255,14 +252,13 @@ export async function claudeRemote(opts: ClaudeRemoteOptions) {
                     return;
                 }
                 mode = next.mode;
-                messages.push({ type: 'user', message: { role: 'user', content: next.message } } as SDKUserMessage);
+                messages.push({ type: 'user', message: { role: 'user', content: next.message }, parent_tool_use_id: null, session_id: '' });
             }
 
             // Handle tool result
             if (message.type === 'user') {
-                const msg = message as SDKUserMessage;
-                if (msg.message.role === 'user' && Array.isArray(msg.message.content)) {
-                    for (let c of msg.message.content) {
+                if (message.message.role === 'user' && Array.isArray(message.message.content)) {
+                    for (const c of message.message.content) {
                         if (c.type === 'tool_result' && c.tool_use_id && opts.isAborted(c.tool_use_id)) {
                             logger.debug('[claudeRemote] Tool aborted, exiting claudeRemote');
                             return;
