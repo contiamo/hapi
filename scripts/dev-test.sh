@@ -158,6 +158,20 @@ check_port() {
     return 0
 }
 
+# Kill any stale dev runner from a previous run
+kill_stale_dev_processes() {
+    local state_file="$DEV_HOME/runner.state.json"
+    if [ -f "$state_file" ]; then
+        local pid
+        pid=$(jq -r '.pid // empty' "$state_file" 2>/dev/null || true)
+        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+            print_info "Killing stale dev runner (PID $pid)..."
+            kill -9 "$pid" 2>/dev/null || true
+        fi
+    fi
+    rm -f "$DEV_HOME/runner.state.json.lock"
+}
+
 # Cleanup function
 cleanup() {
     print_info "Shutting down..."
@@ -165,12 +179,21 @@ cleanup() {
     if [ -n "$RUNNER_PID" ] && kill -0 "$RUNNER_PID" 2>/dev/null; then
         print_info "Stopping runner (PID $RUNNER_PID)..."
         kill "$RUNNER_PID" 2>/dev/null || true
+        wait "$RUNNER_PID" 2>/dev/null || true
     fi
 
     if [ -n "$SERVER_PID" ] && kill -0 "$SERVER_PID" 2>/dev/null; then
         print_info "Stopping server (PID $SERVER_PID)..."
         kill "$SERVER_PID" 2>/dev/null || true
+        wait "$SERVER_PID" 2>/dev/null || true
     fi
+
+    # Clean up any session child processes spawned by the runner
+    if [ -n "$BINARY" ]; then
+        pkill -f "$BINARY" 2>/dev/null || true
+    fi
+
+    rm -f "$DEV_HOME/runner.state.json.lock"
 
     print_success "Shutdown complete"
 }
@@ -202,6 +225,9 @@ main() {
     fi
 
     BINARY="$binary_path"
+
+    # Kill any stale processes from a previous dev run
+    kill_stale_dev_processes
 
     # Check port availability
     if ! check_port "$HAPI_PORT"; then
