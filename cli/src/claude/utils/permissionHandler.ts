@@ -100,7 +100,7 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
         this.onPermissionRequestCallback = callback;
     }
 
-    handleModeChange(mode: PermissionMode) {
+    setPermissionMode(mode: PermissionMode) {
         this.session.setPermissionMode(mode);
     }
 

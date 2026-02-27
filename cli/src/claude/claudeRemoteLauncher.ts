@@ -399,7 +399,7 @@ class ClaudeRemoteLauncher {
                             if (pending) {
                                 const p = pending;
                                 pending = null;
-                                permissionHandler.handleModeChange(p.mode.permissionMode);
+                                permissionHandler.setPermissionMode(p.mode.permissionMode);
                                 return p;
                             }
 
@@ -413,7 +413,7 @@ class ClaudeRemoteLauncher {
                                 }
                                 modeHash = msg.hash;
                                 mode = msg.mode;
-                                permissionHandler.handleModeChange(mode.permissionMode);
+                                permissionHandler.setPermissionMode(mode.permissionMode);
                                 return {
                                     message: msg.message,
                                     mode: msg.mode

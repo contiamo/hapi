@@ -170,6 +170,9 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         sessionInstance.setModelMode(currentModelMode);
         logger.debug(`[loop] Synced session modes for keepalive: permissionMode=${currentPermissionMode}, modelMode=${currentModelMode}`);
     };
+    // session.permissionMode is the authoritative source; it can be updated by the UI
+    // (via set-session-config RPC) between user messages. We sync it into
+    // currentPermissionMode here so each message uses the latest value.
     session.onUserMessage((message) => {
         const sessionPermissionMode = currentSessionRef.current?.getPermissionMode();
         if (sessionPermissionMode && isPermissionModeAllowed(sessionPermissionMode)) {
