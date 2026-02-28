@@ -107,3 +107,47 @@ and — combined with item 1 above — means permission responses no longer trig
 
 The remaining agentState content (`requests` for pending permissions, `controlledByUser`)
 is small and genuinely ephemeral.
+
+---
+
+## 3. Collapse the monorepo into a single TypeScript project
+
+### Problem
+
+The repo has four separate TypeScript projects (`cli`, `server`, `shared`, `web`), each
+with its own `tsconfig.json`, `package.json`, and `node_modules`. This creates constant
+friction:
+
+- `pnpm tsc --noEmit` at the root does nothing; you must `cd` into each package
+- `pnpm lint` is a wrapper script that shells into each folder in sequence
+- Cross-package imports use workspace package names (`@hapi/protocol`, `@twsxtd/hapi`)
+  which require workspace resolution plumbing even though all packages live in the same
+  repo and are never published separately
+- `shared` (`@hapi/protocol`) exists purely as an internal dependency; it has no external
+  consumers and no reason to be its own package
+
+The cli `tsconfig.json` already `include`s `../server/src` directly, so cli and server
+are effectively one TS project already — the package boundary is fictional.
+
+### What separates them today
+
+- **`web`** genuinely needs different compiler settings: `DOM` libs, `vite/client` types,
+  `react-jsx`, no `bun-types`. It also has a separate build tool (Vite). This one has a
+  real reason to stay separate.
+- **`cli` + `server` + `shared`**: all target the same runtime (Bun), share the same
+  base tsconfig, compile to the same binary. The split is organisational, not technical.
+
+### Direction for a fix
+
+Merge `cli`, `server`, and `shared` into a single TypeScript project rooted at the repo
+root:
+
+- One `tsconfig.json` at the root covering `cli/src`, `server/src`, `shared/src`
+- One `package.json` with all dependencies merged, one `node_modules`
+- `@hapi/protocol` imports become relative imports or a path alias (`@shared/*`)
+- `pnpm tsc --noEmit` and `pnpm lint` work from the root with no wrapper scripts
+
+`web` stays as a separate Vite project — it genuinely needs different compiler settings
+and a different build pipeline. A root-level `pnpm lint` and `pnpm typecheck` can still
+invoke both in sequence, but the common case (touching cli/server/shared) becomes a
+single command from any directory.
