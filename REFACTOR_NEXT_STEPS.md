@@ -65,17 +65,9 @@ Concretely:
 
 ---
 
-## 2. Dead code from Codex/Gemini removal (minor, low risk)
+## 2. `flavor` schema could be narrowed (minor)
 
-Left over from the `8f24f47` backend removal commit:
-
-- `web/src/components/ToolCard/views/_results.tsx` still registers `CodexReasoning`,
-  `CodexPatch`, `CodexDiff` view types (~150 lines of dead view code) whose backing
-  files were deleted
-- `cli/src/claude/sdk/index.ts` and `sdk/types.ts` export `CanCallToolCallback` as a
-  legacy alias for `CanUseTool` with a comment "kept for callers that haven't migrated"
-  — there are zero callers in the codebase
-- `cli/src/runner/run.ts` uses `_machineId` to suppress an oxlint warning for a field
-  that is genuinely unused; should be removed from the destructure entirely
-- `shared/src/schemas.ts` `flavor` field is `z.string().nullish()` but only `'claude'`
-  is ever written; could be narrowed to `z.literal('claude').nullish()`
+`shared/src/schemas.ts` `flavor` field is `z.string().nullish()` but only `'claude'`
+is ever written by new code. Narrowing to `z.literal('claude').nullish()` is desirable
+but requires confirming that no existing database rows carry `'codex'` or `'gemini'`
+values (or adding a migration to clear them first).

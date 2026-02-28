@@ -28,9 +28,6 @@ export type {
 
 export { AbortError } from '@anthropic-ai/claude-agent-sdk'
 
-// Re-export CanUseTool under the legacy name so existing callers keep working
-export type { CanUseTool as CanCallToolCallback } from '@anthropic-ai/claude-agent-sdk'
-
 import type {
     PermissionMode,
     PermissionUpdate,
