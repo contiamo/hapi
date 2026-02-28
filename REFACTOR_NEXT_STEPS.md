@@ -63,3 +63,47 @@ Concretely:
 - Remove or simplify `reconcileChatBlocks` once the reconstruction frequency drops — at
   that point it only needs to handle the message-append case, not the agentState-tick case
 
+---
+
+## 2. `completedRequests` in agentState is redundant and grows unboundedly
+
+### Problem
+
+`agentState.completedRequests` accumulates one entry per tool call for the lifetime of
+the session and is never pruned (only cleared on `/clear`). Each entry stores `tool`,
+`arguments` (which can be large — full file contents for Write calls), `status`, `mode`,
+`decision`, `blockedPath`, `decisionReason`, etc.
+
+This data is already in the `messages` table. When a permission is resolved,
+`sdkToLogConverter` embeds a `permissions` field (`{ result, date, mode, decision }`) in
+the tool-result message. The tool name and input are in the preceding tool-use message.
+`completedRequests` is a second copy of this information, keyed by tool call ID for fast
+lookup during `reduceChatBlocks`.
+
+### Why it exists
+
+The web reducer (`getPermissions` in `reducerTools.ts`) reads `completedRequests` to
+build a `Map<toolCallId, PermissionEntry>` before processing messages. This lets it
+overlay permission status onto tool cards in O(1) per card rather than scanning messages.
+But since `reduceChatBlocks` already iterates all messages, the map could be built during
+that pass at zero extra storage cost.
+
+### Direction for a fix
+
+Drop `completedRequests` entirely:
+
+1. In `reducerTools.ts` / `reducer.ts`: build the permission map from messages during the
+   reduce pass instead of reading it from agentState. The `permissions` field on
+   tool-result messages already carries `result`, `mode`, and `decision`. The tool name
+   and input come from the matching tool-use content block.
+
+2. In `BasePermissionHandler.finalizeRequest`: stop calling `updateAgentState` to append
+   to `completedRequests`. The message emitted by `sdkToLogConverter` already records the
+   outcome; no second write is needed.
+
+This directly shrinks the `agent_state` column (which can reach 100KB+ on long sessions),
+and — combined with item 1 above — means permission responses no longer trigger
+`updateAgentState` at all, removing the biggest source of the O(N) update chain.
+
+The remaining agentState content (`requests` for pending permissions, `controlledByUser`)
+is small and genuinely ephemeral.
