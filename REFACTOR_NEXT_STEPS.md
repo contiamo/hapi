@@ -151,3 +151,4 @@ root:
 and a different build pipeline. A root-level `pnpm lint` and `pnpm typecheck` can still
 invoke both in sequence, but the common case (touching cli/server/shared) becomes a
 single command from any directory.
+

@@ -39,14 +39,19 @@ const DESTINATION_LABELS: Record<string, string> = {
     userSettings: 'all projects',
 }
 
-function formatSuggestionLabel(suggestion: PermissionUpdate): string {
-    if (suggestion.type === 'setMode') return `Mode: ${suggestion.mode}`
-    if (suggestion.type === 'addDirectories' || suggestion.type === 'removeDirectories') return suggestion.directories.join(', ')
-    return ''
+const MODE_LABELS: Record<string, string> = {
+    acceptEdits: 'Accept Edits',
+    bypassPermissions: 'Bypass Permissions',
+    plan: 'Plan Mode',
+    default: 'Default',
 }
 
 function destinationLabel(destination: string): string {
     return DESTINATION_LABELS[destination] ?? destination
+}
+
+function modeLabel(mode: string): string {
+    return MODE_LABELS[mode] ?? mode
 }
 
 function PermissionRowButton(props: {
@@ -95,6 +100,7 @@ export function PermissionFooter(props: {
     const [loading, setLoading] = useState<'allow' | 'deny' | null>(null)
     const [loadingAllEdits, setLoadingAllEdits] = useState(false)
     const [loadingSaveRule, setLoadingSaveRule] = useState(false)
+    const [loadingSwitchMode, setLoadingSwitchMode] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [message, setMessage] = useState('')
     // Editable rule content for each suggestion (keyed by index)
@@ -124,8 +130,13 @@ export function PermissionFooter(props: {
         || toolName === 'NotebookEdit'
 
     const canAllowAllEdits = isPending && isEditTool
-    // The save-rule button is only meaningful when the SDK provided suggestions
-    const canSaveRule = isPending && !!permission.suggestions?.length
+    const suggestions = permission.suggestions
+    // A setMode suggestion means Claude wants to switch the global permission mode.
+    // Render a dedicated "Switch to [mode]" button instead of the rule editor.
+    const setModeSuggestion = suggestions?.find(s => s.type === 'setMode')
+    const hasRuleSuggestions = suggestions?.some(s => s.type === 'addRules' || s.type === 'replaceRules' || s.type === 'removeRules')
+    const canSwitchMode = isPending && !!setModeSuggestion && !hasRuleSuggestions
+    const canSaveRule = isPending && !!suggestions?.length && !canSwitchMode
     const trimmedMessage = message.trim()
 
     // Build the (possibly edited) suggestions to send back
@@ -145,14 +156,14 @@ export function PermissionFooter(props: {
     }
 
     const approve = async () => {
-        if (!isPending || loading || loadingAllEdits || loadingSaveRule) return
+        if (!isPending || loading || loadingAllEdits || loadingSaveRule || loadingSwitchMode) return
         setLoading('allow')
         await run(() => props.api.approvePermission(props.sessionId, permission.id, { message: trimmedMessage || undefined }), 'success')
         setLoading(null)
     }
 
     const approveAllEdits = async () => {
-        if (!isPending || loading || loadingAllEdits || loadingSaveRule) return
+        if (!isPending || loading || loadingAllEdits || loadingSaveRule || loadingSwitchMode) return
         setLoadingAllEdits(true)
         await run(() => props.api.approvePermission(props.sessionId, permission.id, { mode: 'acceptEdits', message: trimmedMessage || undefined }), 'success')
         setLoadingAllEdits(false)
@@ -161,13 +172,20 @@ export function PermissionFooter(props: {
     const saveRule = async () => {
         if (!canSaveRule || loading || loadingAllEdits || loadingSaveRule) return
         setLoadingSaveRule(true)
-        const suggestions = buildEditedSuggestions()
-        await run(() => props.api.approvePermission(props.sessionId, permission.id, { suggestions, message: trimmedMessage || undefined }), 'success')
+        const editedSuggestions = buildEditedSuggestions()
+        await run(() => props.api.approvePermission(props.sessionId, permission.id, { suggestions: editedSuggestions, message: trimmedMessage || undefined }), 'success')
         setLoadingSaveRule(false)
     }
 
+    const switchMode = async () => {
+        if (!canSwitchMode || loading || loadingAllEdits || loadingSaveRule || loadingSwitchMode) return
+        setLoadingSwitchMode(true)
+        await run(() => props.api.approvePermission(props.sessionId, permission.id, { suggestions: [setModeSuggestion!], message: trimmedMessage || undefined }), 'success')
+        setLoadingSwitchMode(false)
+    }
+
     const deny = async () => {
-        if (!isPending || loading || loadingAllEdits || loadingSaveRule) return
+        if (!isPending || loading || loadingAllEdits || loadingSaveRule || loadingSwitchMode) return
         setLoading('deny')
         await run(() => props.api.denyPermission(props.sessionId, permission.id, { reason: trimmedMessage || undefined }), 'success')
         setLoading(null)
@@ -186,8 +204,7 @@ export function PermissionFooter(props: {
         )
     }
 
-    const isActing = loading !== null || loadingAllEdits || loadingSaveRule
-    const suggestions = permission.suggestions
+    const isActing = loading !== null || loadingAllEdits || loadingSaveRule || loadingSwitchMode
     const summary = formatPermissionSummary(permission, t)
 
     return (
@@ -227,14 +244,7 @@ export function PermissionFooter(props: {
                 <div className="mt-2 space-y-1">
                     <div className="text-xs text-[var(--app-hint)]">Rule to save:</div>
                     {suggestions!.map((s, i) => {
-                        if (s.type !== 'addRules' && s.type !== 'replaceRules' && s.type !== 'removeRules') {
-                            return (
-                                <div key={i} className="flex items-center gap-2 rounded-md border border-[var(--app-border)] px-2 py-1.5">
-                                    <span className="flex-1 text-sm font-mono">{formatSuggestionLabel(s)}</span>
-                                    <span className="text-xs text-[var(--app-hint)]">{destinationLabel(s.destination)}</span>
-                                </div>
-                            )
-                        }
+                        if (s.type !== 'addRules' && s.type !== 'replaceRules' && s.type !== 'removeRules') return null
                         const ruleContent = editedRules[i] ?? (s.rules[0]?.ruleContent ?? '')
                         return (
                             <div key={i} className="flex items-center gap-2 rounded-md border border-[var(--app-border)] px-2 py-1">
@@ -263,6 +273,15 @@ export function PermissionFooter(props: {
                     disabled={props.disabled || isActing}
                     onClick={approve}
                 />
+                {canSwitchMode ? (
+                    <PermissionRowButton
+                        label={`Switch to ${modeLabel(setModeSuggestion!.mode)}`}
+                        tone="neutral"
+                        loading={loadingSwitchMode}
+                        disabled={props.disabled || isActing}
+                        onClick={switchMode}
+                    />
+                ) : null}
                 {canSaveRule ? (
                     <PermissionRowButton
                         label={`Allow for ${destinationLabel(suggestions![0].destination)}`}
