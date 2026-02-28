@@ -38,7 +38,7 @@ See `src/router.tsx` for route definitions.
 - Session title from name, summary, or path.
 - Todo progress display.
 - Pending permission request count.
-- Agent flavor label (claude/codex/gemini).
+- Agent flavor label.
 - Model mode display.
 
 ### Chat interface (`src/components/SessionChat.tsx`)
@@ -65,7 +65,7 @@ See `src/router.tsx` for route definitions.
 
 - Machine selector.
 - Directory input with recent paths.
-- Agent type selector (claude/codex/gemini).
+- Agent type selector.
 
 ## Authentication
 
