@@ -65,7 +65,7 @@ export const MetadataSchema = z.object({
     lifecycleStateSince: z.number().optional(),
     archivedBy: z.string().optional(),
     archiveReason: z.string().optional(),
-    flavor: z.string().nullish(),
+    flavor: z.literal('claude').nullish(),
     worktree: WorktreeMetadataSchema.optional(),
     shouldFork: z.boolean().optional(),
     yolo: z.boolean().optional(),

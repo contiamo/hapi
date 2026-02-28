@@ -63,11 +63,3 @@ Concretely:
 - Remove or simplify `reconcileChatBlocks` once the reconstruction frequency drops — at
   that point it only needs to handle the message-append case, not the agentState-tick case
 
----
-
-## 2. `flavor` schema could be narrowed (minor)
-
-`shared/src/schemas.ts` `flavor` field is `z.string().nullish()` but only `'claude'`
-is ever written by new code. Narrowing to `z.literal('claude').nullish()` is desirable
-but requires confirming that no existing database rows carry `'codex'` or `'gemini'`
-values (or adding a migration to clear them first).
