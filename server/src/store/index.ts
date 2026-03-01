@@ -249,7 +249,7 @@ export class Store {
             this.db.exec('ALTER TABLE machines RENAME COLUMN daemon_state_version TO runner_state_version')
             this.db.exec('COMMIT')
             return
-        } catch (error) {
+        } catch {
             this.db.exec('ROLLBACK')
         }
 

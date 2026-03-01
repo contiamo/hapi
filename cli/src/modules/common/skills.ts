@@ -18,8 +18,8 @@ export interface ListSkillsResponse {
 }
 
 function getSkillsRoot(): string {
-    const codexHome = process.env.CODEX_HOME ?? join(homedir(), '.codex');
-    return join(codexHome, 'skills');
+    const hapiHome = process.env.HAPI_HOME?.replace(/^~/, homedir()) ?? join(homedir(), '.hapi');
+    return join(hapiHome, 'skills');
 }
 
 function parseFrontmatter(fileContent: string): { frontmatter?: Record<string, unknown>; body: string } {

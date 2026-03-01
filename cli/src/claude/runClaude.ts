@@ -14,9 +14,9 @@ import { generateHookSettingsFile, cleanupHookSettingsFile } from '@/modules/com
 import { registerKillSessionHandler } from './registerKillSessionHandler';
 import { registerResumeSessionHandler } from './registerResumeSessionHandler';
 import type { Session } from './session';
-import { bootstrapSession } from '@/agent/sessionFactory';
-import { createModeChangeHandler, createRunnerLifecycle, setControlledByUser } from '@/agent/runnerLifecycle';
-import { isModelModeAllowedForFlavor, isPermissionModeAllowedForFlavor } from '@hapi/protocol';
+import { bootstrapSession } from '@/claude/sessionFactory';
+import { createModeChangeHandler, createRunnerLifecycle, setControlledByUser } from '@/claude/runnerLifecycle';
+import { isModelModeAllowed, isPermissionModeAllowed } from '@hapi/protocol';
 import { ModelModeSchema, PermissionModeSchema } from '@hapi/protocol/schemas';
 import { formatMessageWithAttachments } from '@/utils/attachmentFormatter';
 
@@ -66,7 +66,7 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         try {
             // Claude Code's init message already includes all commands (built-ins, user skills,
             // project skills, plugin skills) - no separate directory scan needed.
-            const slashCommands = buildSlashCommandList('claude', sdkMetadata.slashCommands);
+            const slashCommands = buildSlashCommandList(sdkMetadata.slashCommands);
             logger.debug('[start] Built slash command list:', slashCommands.length, 'commands');
 
             session.updateMetadata((currentMetadata) => ({
@@ -170,9 +170,12 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         sessionInstance.setModelMode(currentModelMode);
         logger.debug(`[loop] Synced session modes for keepalive: permissionMode=${currentPermissionMode}, modelMode=${currentModelMode}`);
     };
+    // session.permissionMode is the authoritative source; it can be updated by the UI
+    // (via set-session-config RPC) between user messages. We sync it into
+    // currentPermissionMode here so each message uses the latest value.
     session.onUserMessage((message) => {
         const sessionPermissionMode = currentSessionRef.current?.getPermissionMode();
-        if (sessionPermissionMode && isPermissionModeAllowedForFlavor(sessionPermissionMode, 'claude')) {
+        if (sessionPermissionMode && isPermissionModeAllowed(sessionPermissionMode)) {
             currentPermissionMode = sessionPermissionMode as PermissionMode;
         }
         const messagePermissionMode = currentPermissionMode;
@@ -304,7 +307,7 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
 
     const resolvePermissionMode = (value: unknown): PermissionMode => {
         const parsed = PermissionModeSchema.safeParse(value);
-        if (!parsed.success || !isPermissionModeAllowedForFlavor(parsed.data, 'claude')) {
+        if (!parsed.success || !isPermissionModeAllowed(parsed.data)) {
             throw new Error('Invalid permission mode');
         }
         return parsed.data as PermissionMode;
@@ -312,7 +315,7 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
 
     const resolveModelMode = (value: unknown): SessionModelMode => {
         const parsed = ModelModeSchema.safeParse(value);
-        if (!parsed.success || !isModelModeAllowedForFlavor(parsed.data, 'claude')) {
+        if (!parsed.success || !isModelModeAllowed(parsed.data)) {
             throw new Error('Invalid model mode');
         }
         return parsed.data;

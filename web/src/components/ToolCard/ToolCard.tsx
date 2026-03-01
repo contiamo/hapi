@@ -222,17 +222,13 @@ function renderToolInput(block: ToolCallBlock): ReactNode {
         }
     }
 
-    if (toolName === 'CodexDiff' && isObject(input) && typeof input.unified_diff === 'string') {
-        return <CodeBlock code={input.unified_diff} language="diff" />
-    }
-
     if (toolName === 'ExitPlanMode' || toolName === 'exit_plan_mode') {
         const plan = renderExitPlanModeInput(input)
         if (plan) return plan
     }
 
     const commandArray = isObject(input) && Array.isArray(input.command) ? input.command : null
-    if ((toolName === 'CodexBash' || toolName === 'Bash') && (typeof commandArray?.[0] === 'string' || typeof input === 'object')) {
+    if (toolName === 'Bash' && (typeof commandArray?.[0] === 'string' || typeof input === 'object')) {
         const cmd = Array.isArray(commandArray)
             ? commandArray.filter((part) => typeof part === 'string').join(' ')
             : getInputStringAny(input, ['command', 'cmd'])

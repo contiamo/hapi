@@ -85,8 +85,7 @@ export function SessionHeader(props: {
 
     const { archiveSession, renameSession, deleteSession, resumeSession, forkSession, reloadSession, isPending } = useSessionActions(
         api,
-        session.id,
-        session.metadata?.flavor ?? null
+        session.id
     )
 
     const handleDelete = async () => {
@@ -98,7 +97,7 @@ export function SessionHeader(props: {
         try {
             await resumeSession()
             // On success, user will be navigated to the session
-        } catch (error) {
+        } catch {
             // Error already toasted by useSessionActions
             // Keep menu open so user can retry
         }
@@ -113,7 +112,7 @@ export function SessionHeader(props: {
         try {
             await forkSession(enableYolo)
             // On success, user will be navigated to the forked session
-        } catch (error) {
+        } catch {
             // Error already toasted by useSessionActions
         }
     }
@@ -126,7 +125,7 @@ export function SessionHeader(props: {
     const handleReloadConfirm = async (force: boolean, enableYolo: boolean) => {
         try {
             await reloadSession(force, enableYolo)
-        } catch (error) {
+        } catch {
             // Error already toasted by useSessionActions
         }
     }

@@ -15,7 +15,7 @@ import packageJson from '../../package.json'
 export type SessionStartedBy = 'runner' | 'terminal'
 
 export type SessionBootstrapOptions = {
-    flavor: string
+    flavor: 'claude'
     startedBy?: SessionStartedBy
     workingDirectory?: string
     sessionId?: string | null  // UUID for resume, null/undefined for new session
@@ -45,7 +45,7 @@ export function buildMachineMetadata(): MachineMetadata {
 }
 
 export type BuildSessionMetadataOptions = {
-    flavor: string
+    flavor: 'claude'
     startedBy: SessionStartedBy
     workingDirectory: string
     machineId: string

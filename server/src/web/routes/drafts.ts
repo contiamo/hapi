@@ -2,7 +2,6 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import type { Store } from '../../store'
 import type { WebAppEnv } from '../middleware/auth'
-import { requireSessionFromParam } from './guards'
 
 const saveDraftBodySchema = z.object({
     text: z.string().max(10000), // 10KB limit

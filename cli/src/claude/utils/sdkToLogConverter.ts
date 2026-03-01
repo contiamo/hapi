@@ -146,13 +146,6 @@ export class SDKToLogConverter {
                     // Assistant messages often have additional fields
                     requestId: (assistantMsg as any).requestId
                 }
-                // if (assistantMsg.message.content && Array.isArray(assistantMsg.message.content)) {
-                //     for (const content of assistantMsg.message.content) {
-                //         if (content.type === 'tool_use' && content.id) {
-                //             this.sidechainLastUUID.set(content.id, uuid);
-                //         }
-                //     }
-                // }
                 break
             }
 

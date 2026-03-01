@@ -21,6 +21,7 @@ import type {
     SessionResponse,
     SessionsResponse
 } from '@/types/api'
+import type { PermissionUpdate } from '@hapi/protocol/types'
 
 type ApiClientOptions = {
     baseUrl?: string
@@ -377,16 +378,17 @@ export class ApiClient {
     async approvePermission(
         sessionId: string,
         requestId: string,
-        modeOrOptions?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | {
+        options?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | {
             mode?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan'
-            allowTools?: string[]
-            decision?: 'approved' | 'approved_for_session' | 'denied' | 'abort'
+            suggestions?: PermissionUpdate[]
+            decision?: 'approved' | 'denied' | 'abort'
             answers?: Record<string, string[]> | Record<string, { answers: string[] }>
+            message?: string
         }
     ): Promise<void> {
-        const body = typeof modeOrOptions === 'string' || modeOrOptions === undefined
-            ? { mode: modeOrOptions }
-            : modeOrOptions
+        const body = typeof options === 'string' || options === undefined
+            ? { mode: options }
+            : options
         await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/permissions/${encodeURIComponent(requestId)}/approve`, {
             method: 'POST',
             body: JSON.stringify(body)
@@ -397,7 +399,8 @@ export class ApiClient {
         sessionId: string,
         requestId: string,
         options?: {
-            decision?: 'approved' | 'approved_for_session' | 'denied' | 'abort'
+            decision?: 'denied' | 'abort'
+            reason?: string
         }
     ): Promise<void> {
         await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/permissions/${encodeURIComponent(requestId)}/deny`, {
@@ -444,7 +447,7 @@ export class ApiClient {
     async spawnSession(
         machineId: string,
         directory: string,
-        agent?: 'claude' | 'codex' | 'gemini',
+        
         model?: string,
         yolo?: boolean,
         sessionType?: 'simple' | 'worktree',
@@ -452,7 +455,7 @@ export class ApiClient {
     ): Promise<SpawnResponse> {
         return await this.request<SpawnResponse>(`/api/machines/${encodeURIComponent(machineId)}/spawn`, {
             method: 'POST',
-            body: JSON.stringify({ directory, agent, model, yolo, sessionType, worktreeName })
+            body: JSON.stringify({ directory, model, yolo, sessionType, worktreeName })
         })
     }
 

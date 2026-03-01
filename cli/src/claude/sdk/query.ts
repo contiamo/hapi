@@ -280,13 +280,9 @@ export function query(config: {
             fallbackModel,
             settingsPath,
             strictMcpConfig,
-            canCallTool,
-        canUseTool: canUseToolOption,
+            canUseTool,
         } = {}
     } = config
-
-    // Support both names; canUseTool takes precedence
-    const canUseTool = canUseToolOption ?? canCallTool
 
     // Set entrypoint if not already set
     if (!process.env.CLAUDE_CODE_ENTRYPOINT) {

@@ -200,27 +200,6 @@ function XIcon(props: { className?: string }) {
     )
 }
 
-function ArchiveIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <rect width="20" height="5" x="2" y="3" rx="1" />
-            <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" />
-            <path d="M10 12h4" />
-        </svg>
-    )
-}
-
 function getSessionTitle(session: SessionSummary): string {
     if (session.metadata?.name) {
         return session.metadata.name
@@ -273,7 +252,6 @@ function SessionItem(props: {
     const { t } = useTranslation()
     const { session: s, onSelect, showPath = true, api, selectionMode = false, isSelected = false, onToggleSelection } = props
     const { haptic } = usePlatform()
-    const toast = useSimpleToast()
     const [menuOpen, setMenuOpen] = useState(false)
     const [menuAnchorPoint, setMenuAnchorPoint] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
     const [renameOpen, setRenameOpen] = useState(false)
@@ -282,15 +260,14 @@ function SessionItem(props: {
 
     const { archiveSession, renameSession, deleteSession, resumeSession, isPending } = useSessionActions(
         api,
-        s.id,
-        s.metadata?.flavor ?? null
+        s.id
     )
 
     const handleResume = async () => {
         try {
             await resumeSession()
             // On success, user will be navigated to the session
-        } catch (error) {
+        } catch {
             // Error already toasted by useSessionActions
             // Keep menu open so user can retry
         }

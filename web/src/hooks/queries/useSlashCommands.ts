@@ -22,34 +22,17 @@ function levenshteinDistance(a: string, b: string): number {
 }
 
 /**
- * Fallback slash commands shown while RPC loads.
- * For Claude, only intercepted commands. For other agents, full hardcoded list.
+ * Fallback slash commands shown while the RPC metadata loads.
  */
-const FALLBACK_COMMANDS: Record<string, SlashCommand[]> = {
-    claude: [
-        { name: 'clear', description: 'Complete context and session reset', source: 'builtin' },
-        { name: 'compact', description: 'Compress context while preserving session', source: 'builtin' }
-    ],
-    codex: [
-        { name: 'review', description: 'Review current changes and find issues', source: 'builtin' },
-        { name: 'new', description: 'Start a new chat during a conversation', source: 'builtin' },
-        { name: 'compat', description: 'Summarize conversation to prevent hitting the context limit', source: 'builtin' },
-        { name: 'undo', description: 'Ask Codex to undo a turn', source: 'builtin' },
-        { name: 'diff', description: 'Show git diff including untracked files', source: 'builtin' },
-        { name: 'status', description: 'Show current session configuration and token usage', source: 'builtin' },
-    ],
-    gemini: [
-        { name: 'about', description: 'Show version info', source: 'builtin' },
-        { name: 'clear', description: 'Clear the screen and conversation history', source: 'builtin' },
-        { name: 'compress', description: 'Compress the context by replacing it with a summary', source: 'builtin' },
-        { name: 'stats', description: 'Check session stats', source: 'builtin' },
-    ],
-}
+const FALLBACK_COMMANDS: SlashCommand[] = [
+    { name: 'clear', description: 'Complete context and session reset', source: 'builtin' },
+    { name: 'compact', description: 'Compress context while preserving session', source: 'builtin' },
+    { name: 'rollback', description: 'Remove the last N conversation turns (default: 1)', source: 'builtin' },
+]
 
 export function useSlashCommands(
     api: ApiClient | null,
     sessionId: string | null,
-    agentType: string = 'claude'
 ): {
     commands: SlashCommand[]
     isLoading: boolean
@@ -75,16 +58,13 @@ export function useSlashCommands(
         refetchInterval: (query) => query.state.data?.loading === true ? 2000 : false,
     })
 
-    // Use API response as source of truth (includes SDK + user commands for Claude)
+    // Use API response as source of truth (includes SDK + user commands)
     const commands = useMemo(() => {
-        // If API succeeded, use its response (includes intercepted + SDK + user commands for Claude)
         if (query.data?.success && query.data.commands) {
             return query.data.commands;
         }
-
-        // Fallback: Show only critical commands while loading
-        return FALLBACK_COMMANDS[agentType] ?? FALLBACK_COMMANDS['claude'] ?? [];
-    }, [agentType, query.data])
+        return FALLBACK_COMMANDS;
+    }, [query.data])
 
     // Track loading state: React Query loading OR API returned loading:true
     const isLoading = useMemo(() => {

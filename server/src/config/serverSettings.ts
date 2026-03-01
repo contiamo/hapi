@@ -8,7 +8,6 @@
  * it will be saved to settings.json for future use
  */
 
-import { existsSync } from 'node:fs'
 import { resolve, isAbsolute } from 'node:path'
 import { getSettingsFile, readSettings, writeSettings } from './settings'
 

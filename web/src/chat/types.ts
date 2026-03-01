@@ -1,4 +1,5 @@
 import type { AttachmentMetadata, MessageStatus } from '@/types/api'
+import type { PermissionUpdate } from '@hapi/protocol/types'
 
 export type UsageData = {
     input_tokens: number
@@ -24,8 +25,7 @@ export type ToolResultPermission = {
     date: number
     result: 'approved' | 'denied'
     mode?: string
-    allowedTools?: string[]
-    decision?: 'approved' | 'approved_for_session' | 'denied' | 'abort'
+    decision?: 'approved' | 'denied' | 'abort'
 }
 
 export type ToolUse = {
@@ -92,12 +92,14 @@ export type ToolPermission = {
     status: 'pending' | 'approved' | 'denied' | 'canceled'
     reason?: string
     mode?: string
-    allowedTools?: string[]
-    decision?: 'approved' | 'approved_for_session' | 'denied' | 'abort'
+    suggestions?: PermissionUpdate[]
+    decision?: 'approved' | 'denied' | 'abort'
     answers?: Record<string, string[]> | Record<string, { answers: string[] }>
     date?: number
     createdAt?: number | null
     completedAt?: number | null
+    blockedPath?: string
+    decisionReason?: string
 }
 
 export type ChatToolCall = {

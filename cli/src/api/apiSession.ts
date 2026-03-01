@@ -397,23 +397,6 @@ export class ApiSessionClient extends EventEmitter {
         })
     }
 
-    sendCodexMessage(body: unknown): void {
-        const content = {
-            role: 'agent',
-            content: {
-                type: 'codex',
-                data: body
-            },
-            meta: {
-                sentFrom: 'cli'
-            }
-        }
-        this.socket.emit('message', {
-            sid: this.sessionId,
-            message: content
-        })
-    }
-
     sendSessionEvent(event: {
         type: 'switch'
         mode: 'local' | 'remote'

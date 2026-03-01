@@ -17,18 +17,8 @@ function getColorScheme(): ColorScheme {
     return 'light'
 }
 
-function isIOS(): boolean {
-    return /iPad|iPhone|iPod/.test(navigator.userAgent)
-}
-
 function applyTheme(scheme: ColorScheme): void {
     document.documentElement.setAttribute('data-theme', scheme)
-}
-
-function applyPlatform(): void {
-    if (isIOS()) {
-        document.documentElement.classList.add('ios')
-    }
 }
 
 // External store for theme state

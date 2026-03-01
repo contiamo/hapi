@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { renderHook } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
@@ -74,7 +74,7 @@ describe('useSessionActions - resumeSession', () => {
         it('should invalidate queries before calling API', async () => {
             const wrapper = createWrapper()
             const { result } = renderHook(
-                () => useSessionActions(mockApi, 'test-session-id', null),
+                () => useSessionActions(mockApi, 'test-session-id'),
                 { wrapper }
             )
 
@@ -91,7 +91,7 @@ describe('useSessionActions - resumeSession', () => {
         it('should call api.resumeSession with correct sessionId', async () => {
             const wrapper = createWrapper()
             const { result } = renderHook(
-                () => useSessionActions(mockApi, 'my-session-123', null),
+                () => useSessionActions(mockApi, 'my-session-123'),
                 { wrapper }
             )
 
@@ -104,7 +104,7 @@ describe('useSessionActions - resumeSession', () => {
         it('should navigate to session after successful resume', async () => {
             const wrapper = createWrapper()
             const { result } = renderHook(
-                () => useSessionActions(mockApi, 'test-session', null),
+                () => useSessionActions(mockApi, 'test-session'),
                 { wrapper }
             )
 
@@ -120,7 +120,7 @@ describe('useSessionActions - resumeSession', () => {
         it('should navigate after API call completes', async () => {
             const wrapper = createWrapper()
             const { result } = renderHook(
-                () => useSessionActions(mockApi, 'test-session', null),
+                () => useSessionActions(mockApi, 'test-session'),
                 { wrapper }
             )
 
@@ -142,7 +142,7 @@ describe('useSessionActions - resumeSession', () => {
         it('should not show success toast (navigation is the feedback)', async () => {
             const wrapper = createWrapper()
             const { result } = renderHook(
-                () => useSessionActions(mockApi, 'test-session', null),
+                () => useSessionActions(mockApi, 'test-session'),
                 { wrapper }
             )
 
@@ -158,7 +158,7 @@ describe('useSessionActions - resumeSession', () => {
         it('should treat "Session is already active" as success and navigate', async () => {
             const wrapper = createWrapper()
             const { result } = renderHook(
-                () => useSessionActions(mockApi, 'active-session', null),
+                () => useSessionActions(mockApi, 'active-session'),
                 { wrapper }
             )
 
@@ -180,7 +180,7 @@ describe('useSessionActions - resumeSession', () => {
         it('should use exact match for "already active" error', async () => {
             const wrapper = createWrapper()
             const { result } = renderHook(
-                () => useSessionActions(mockApi, 'test-session', null),
+                () => useSessionActions(mockApi, 'test-session'),
                 { wrapper }
             )
 
@@ -196,7 +196,7 @@ describe('useSessionActions - resumeSession', () => {
         it('should not show error toast for already active', async () => {
             const wrapper = createWrapper()
             const { result } = renderHook(
-                () => useSessionActions(mockApi, 'test-session', null),
+                () => useSessionActions(mockApi, 'test-session'),
                 { wrapper }
             )
 
@@ -216,7 +216,7 @@ describe('useSessionActions - resumeSession', () => {
         it('should throw error if api is null', async () => {
             const wrapper = createWrapper()
             const { result } = renderHook(
-                () => useSessionActions(null, 'test-session', null),
+                () => useSessionActions(null, 'test-session'),
                 { wrapper }
             )
 
@@ -226,7 +226,7 @@ describe('useSessionActions - resumeSession', () => {
         it('should throw error if sessionId is null', async () => {
             const wrapper = createWrapper()
             const { result } = renderHook(
-                () => useSessionActions(mockApi, null, null),
+                () => useSessionActions(mockApi, null),
                 { wrapper }
             )
 
@@ -236,7 +236,7 @@ describe('useSessionActions - resumeSession', () => {
         it('should propagate API errors (not "already active")', async () => {
             const wrapper = createWrapper()
             const { result } = renderHook(
-                () => useSessionActions(mockApi, 'test-session', null),
+                () => useSessionActions(mockApi, 'test-session'),
                 { wrapper }
             )
 
@@ -250,7 +250,7 @@ describe('useSessionActions - resumeSession', () => {
         it('should not navigate on API error', async () => {
             const wrapper = createWrapper()
             const { result } = renderHook(
-                () => useSessionActions(mockApi, 'test-session', null),
+                () => useSessionActions(mockApi, 'test-session'),
                 { wrapper }
             )
 
@@ -266,7 +266,7 @@ describe('useSessionActions - resumeSession', () => {
         it('should handle non-Error objects thrown by API', async () => {
             const wrapper = createWrapper()
             const { result } = renderHook(
-                () => useSessionActions(mockApi, 'test-session', null),
+                () => useSessionActions(mockApi, 'test-session'),
                 { wrapper }
             )
 
@@ -278,7 +278,7 @@ describe('useSessionActions - resumeSession', () => {
         it('should re-throw errors for caller to handle', async () => {
             const wrapper = createWrapper()
             const { result } = renderHook(
-                () => useSessionActions(mockApi, 'test-session', null),
+                () => useSessionActions(mockApi, 'test-session'),
                 { wrapper }
             )
 
@@ -291,7 +291,7 @@ describe('useSessionActions - resumeSession', () => {
         it('should show error toast with error message from Error object', async () => {
             const wrapper = createWrapper()
             const { result } = renderHook(
-                () => useSessionActions(mockApi, 'test-session', null),
+                () => useSessionActions(mockApi, 'test-session'),
                 { wrapper }
             )
 
@@ -307,7 +307,7 @@ describe('useSessionActions - resumeSession', () => {
         it('should show error toast with translation key for non-Error objects', async () => {
             const wrapper = createWrapper()
             const { result } = renderHook(
-                () => useSessionActions(mockApi, 'test-session', null),
+                () => useSessionActions(mockApi, 'test-session'),
                 { wrapper }
             )
 
@@ -324,7 +324,7 @@ describe('useSessionActions - resumeSession', () => {
         it('should handle empty string sessionId', async () => {
             const wrapper = createWrapper()
             const { result } = renderHook(
-                () => useSessionActions(mockApi, '', null),
+                () => useSessionActions(mockApi, ''),
                 { wrapper }
             )
 
@@ -338,7 +338,7 @@ describe('useSessionActions - resumeSession', () => {
             const wrapper = createWrapper()
             const longId = 'session-' + 'x'.repeat(1000)
             const { result } = renderHook(
-                () => useSessionActions(mockApi, longId, null),
+                () => useSessionActions(mockApi, longId),
                 { wrapper }
             )
 
@@ -353,7 +353,7 @@ describe('useSessionActions - resumeSession', () => {
             const wrapper = createWrapper()
             const uuid = 'aada10c6-9299-4c45-abc4-91db9c0f935d'
             const { result } = renderHook(
-                () => useSessionActions(mockApi, uuid, null),
+                () => useSessionActions(mockApi, uuid),
                 { wrapper }
             )
 
@@ -370,7 +370,7 @@ describe('useSessionActions - resumeSession', () => {
             const wrapper = createWrapper()
             const sessionId = 'session-abc-123-xyz'
             const { result } = renderHook(
-                () => useSessionActions(mockApi, sessionId, null),
+                () => useSessionActions(mockApi, sessionId),
                 { wrapper }
             )
 
@@ -386,7 +386,7 @@ describe('useSessionActions - resumeSession', () => {
         it('should handle rapid successive calls', async () => {
             const wrapper = createWrapper()
             const { result } = renderHook(
-                () => useSessionActions(mockApi, 'test-session', null),
+                () => useSessionActions(mockApi, 'test-session'),
                 { wrapper }
             )
 
@@ -404,7 +404,7 @@ describe('useSessionActions - resumeSession', () => {
         it('should handle slow API response', async () => {
             const wrapper = createWrapper()
             const { result } = renderHook(
-                () => useSessionActions(mockApi, 'test-session', null),
+                () => useSessionActions(mockApi, 'test-session'),
                 { wrapper }
             )
 
@@ -424,7 +424,7 @@ describe('useSessionActions - resumeSession', () => {
         it('should invalidate session queries before navigation', async () => {
             const wrapper = createWrapper()
             const { result } = renderHook(
-                () => useSessionActions(mockApi, 'test-session', null),
+                () => useSessionActions(mockApi, 'test-session'),
                 { wrapper }
             )
 
@@ -449,7 +449,7 @@ describe('useSessionActions - resumeSession', () => {
         it('should invalidate both session and sessions queries', async () => {
             const wrapper = createWrapper()
             const { result } = renderHook(
-                () => useSessionActions(mockApi, 'test-session', null),
+                () => useSessionActions(mockApi, 'test-session'),
                 { wrapper }
             )
 
@@ -466,7 +466,7 @@ describe('useSessionActions - resumeSession', () => {
         it('should complete full flow: invalidate -> resume -> navigate', async () => {
             const wrapper = createWrapper()
             const { result } = renderHook(
-                () => useSessionActions(mockApi, 'test-session', null),
+                () => useSessionActions(mockApi, 'test-session'),
                 { wrapper }
             )
 
@@ -492,7 +492,7 @@ describe('useSessionActions - resumeSession', () => {
         it('should allow retry after error', async () => {
             const wrapper = createWrapper()
             const { result } = renderHook(
-                () => useSessionActions(mockApi, 'test-session', null),
+                () => useSessionActions(mockApi, 'test-session'),
                 { wrapper }
             )
 

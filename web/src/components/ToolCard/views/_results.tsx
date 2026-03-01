@@ -413,82 +413,6 @@ const MutationResultView: ToolViewComponent = (props: ToolViewProps) => {
     )
 }
 
-const CodexPatchResultView: ToolViewComponent = (props: ToolViewProps) => {
-    const result = props.block.tool.result
-    const text = extractTextFromResult(result)
-    if (text) {
-        return (
-            <>
-                {renderText(text, { mode: 'auto' })}
-                <RawJsonDevOnly value={result} />
-            </>
-        )
-    }
-
-    if (result === undefined || result === null) {
-        return props.block.tool.state === 'completed'
-            ? <div className="text-sm text-[var(--app-hint)]">Done</div>
-            : <div className="text-sm text-[var(--app-hint)]">{placeholderForState(props.block.tool.state)}</div>
-    }
-
-    return (
-        <>
-            <div className="text-sm text-[var(--app-hint)]">(no output)</div>
-            <RawJsonDevOnly value={result} />
-        </>
-    )
-}
-
-const CodexReasoningResultView: ToolViewComponent = (props: ToolViewProps) => {
-    const result = props.block.tool.result
-    if (result === undefined || result === null) {
-        return <div className="text-sm text-[var(--app-hint)]">{placeholderForState(props.block.tool.state)}</div>
-    }
-
-    const text = extractTextFromResult(result)
-    if (text) {
-        return (
-            <>
-                {renderText(text, { mode: 'auto' })}
-                <RawJsonDevOnly value={result} />
-            </>
-        )
-    }
-
-    return (
-        <>
-            <div className="text-sm text-[var(--app-hint)]">(no output)</div>
-            <RawJsonDevOnly value={result} />
-        </>
-    )
-}
-
-const CodexDiffResultView: ToolViewComponent = (props: ToolViewProps) => {
-    const result = props.block.tool.result
-    if (result === undefined || result === null) {
-        return props.block.tool.state === 'completed'
-            ? <div className="text-sm text-[var(--app-hint)]">Done</div>
-            : <div className="text-sm text-[var(--app-hint)]">{placeholderForState(props.block.tool.state)}</div>
-    }
-
-    const text = extractTextFromResult(result)
-    if (text) {
-        return (
-            <>
-                {renderText(text, { mode: 'code', language: 'diff' })}
-                <RawJsonDevOnly value={result} />
-            </>
-        )
-    }
-
-    return (
-        <>
-            <div className="text-sm text-[var(--app-hint)]">Done</div>
-            <RawJsonDevOnly value={result} />
-        </>
-    )
-}
-
 type TodoItem = {
     id?: string
     content?: string
@@ -608,9 +532,6 @@ export const toolResultViewRegistry: Record<string, ToolViewComponent> = {
     NotebookRead: ReadResultView,
     NotebookEdit: MutationResultView,
     TodoWrite: TodoWriteResultView,
-    CodexReasoning: CodexReasoningResultView,
-    CodexPatch: CodexPatchResultView,
-    CodexDiff: CodexDiffResultView,
     AskUserQuestion: AskUserQuestionResultView,
     ExitPlanMode: MarkdownResultView,
     ask_user_question: AskUserQuestionResultView,

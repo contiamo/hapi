@@ -34,7 +34,7 @@ export function updateVersionedField<T>(args: VersionedUpdateArgs<T>): Versioned
             namespace: args.namespace,
             expectedVersion: args.expectedVersion,
             field_value: args.encode(args.value),
-            ...(args.params ?? {})
+            ...args.params
         })
 
         if (result.changes === 1) {

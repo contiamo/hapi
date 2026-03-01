@@ -1,12 +1,10 @@
-import { isPermissionModeAllowedForFlavor } from '@hapi/protocol'
-import { PermissionModeSchema } from '@hapi/protocol/schemas'
+import { isPermissionModeAllowed } from '@hapi/protocol'
+import { PermissionModeSchema, PermissionUpdateSchema } from '@hapi/protocol/schemas'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import type { SyncEngine } from '../../sync/syncEngine'
 import type { WebAppEnv } from '../middleware/auth'
 import { requireSessionFromParam, requireSyncEngine } from './guards'
-
-const decisionSchema = z.enum(['approved', 'approved_for_session', 'denied', 'abort'])
 
 // Flat format: Record<string, string[]> (AskUserQuestion)
 // Nested format: Record<string, { answers: string[] }> (request_user_input)
@@ -17,13 +15,15 @@ const answersSchema = z.union([
 
 const approveBodySchema = z.object({
     mode: PermissionModeSchema.optional(),
-    allowTools: z.array(z.string()).optional(),
-    decision: decisionSchema.optional(),
-    answers: answersSchema.optional()
+    suggestions: z.array(PermissionUpdateSchema).optional(),
+    decision: z.enum(['approved', 'denied', 'abort']).optional(),
+    answers: answersSchema.optional(),
+    message: z.string().optional()
 })
 
 const denyBodySchema = z.object({
-    decision: decisionSchema.optional()
+    decision: z.enum(['denied', 'abort']).optional(),
+    reason: z.string().optional()
 })
 
 export function createPermissionsRoutes(getSyncEngine: () => SyncEngine | null): Hono<WebAppEnv> {
@@ -56,15 +56,15 @@ export function createPermissionsRoutes(getSyncEngine: () => SyncEngine | null):
 
         const mode = parsed.data.mode
         if (mode !== undefined) {
-            const flavor = session.metadata?.flavor ?? 'claude'
-            if (!isPermissionModeAllowedForFlavor(mode, flavor)) {
-                return c.json({ error: 'Invalid permission mode for session flavor' }, 400)
+            if (!isPermissionModeAllowed(mode)) {
+                return c.json({ error: 'Invalid permission mode' }, 400)
             }
         }
-        const allowTools = parsed.data.allowTools
+        const suggestions = parsed.data.suggestions
         const decision = parsed.data.decision
         const answers = parsed.data.answers
-        await engine.approvePermission(sessionId, requestId, mode, allowTools, decision, answers)
+        const message = parsed.data.message
+        await engine.approvePermission(sessionId, requestId, mode, suggestions, decision, answers, message)
         return c.json({ ok: true })
     })
 
@@ -93,7 +93,7 @@ export function createPermissionsRoutes(getSyncEngine: () => SyncEngine | null):
             return c.json({ error: 'Invalid body' }, 400)
         }
 
-        await engine.denyPermission(sessionId, requestId, parsed.data.decision)
+        await engine.denyPermission(sessionId, requestId, parsed.data.decision, parsed.data.reason)
         return c.json({ ok: true })
     })
 

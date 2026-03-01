@@ -1,4 +1,4 @@
-import { getPermissionModesForFlavor, isModelModeAllowedForFlavor, isPermissionModeAllowedForFlavor, toSessionSummary } from '@hapi/protocol'
+import { isModelModeAllowed, isPermissionModeAllowed, toSessionSummary } from '@hapi/protocol'
 import { ModelModeSchema, PermissionModeSchema } from '@hapi/protocol/schemas'
 import { Hono } from 'hono'
 import { z } from 'zod'
@@ -255,10 +255,9 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
     })
 
     /**
-     * Fork a session (Claude only).
+     * Fork a session.
      *
      * Creates a new inactive session from an existing one, copying conversation history.
-     * Only supported for Claude sessions - returns 501 for codex/gemini.
      */
     app.post('/sessions/:id/fork', async (c) => {
         const engine = requireSyncEngine(c, getSyncEngine)
@@ -269,14 +268,6 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         const sessionResult = requireSessionFromParam(c, engine)
         if (sessionResult instanceof Response) {
             return sessionResult
-        }
-
-        // Check if fork is supported for this flavor
-        if (sessionResult.session.metadata?.flavor !== 'claude') {
-            return c.json({
-                error: 'Fork is only supported for Claude sessions',
-                flavor: sessionResult.session.metadata?.flavor
-            }, 501)
         }
 
         const enableYolo = c.req.query('yolo') === 'true'
@@ -396,16 +387,10 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return c.json({ error: 'Invalid body' }, 400)
         }
 
-        const flavor = sessionResult.session.metadata?.flavor ?? 'claude'
         const mode = parsed.data.mode
 
-        const allowedModes = getPermissionModesForFlavor(flavor)
-        if (allowedModes.length === 0) {
-            return c.json({ error: 'Permission mode not supported for session flavor' }, 400)
-        }
-
-        if (!isPermissionModeAllowedForFlavor(mode, flavor)) {
-            return c.json({ error: 'Invalid permission mode for session flavor' }, 400)
+        if (!isPermissionModeAllowed(mode)) {
+            return c.json({ error: 'Invalid permission mode' }, 400)
         }
 
         try {
@@ -434,9 +419,8 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return c.json({ error: 'Invalid body' }, 400)
         }
 
-        const flavor = sessionResult.session.metadata?.flavor ?? 'claude'
-        if (!isModelModeAllowedForFlavor(parsed.data.model, flavor)) {
-            return c.json({ error: 'Model mode is only supported for Claude sessions' }, 400)
+        if (!isModelModeAllowed(parsed.data.model)) {
+            return c.json({ error: 'Invalid model mode' }, 400)
         }
 
         try {
@@ -518,11 +502,8 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return sessionResult
         }
 
-        // Get agent type from session metadata, default to 'claude'
-        const agent = sessionResult.session.metadata?.flavor ?? 'claude'
-
         try {
-            const result = await engine.listSlashCommands(sessionResult.sessionId, agent)
+            const result = await engine.listSlashCommands(sessionResult.sessionId)
             return c.json(result)
         } catch {
             // RPC failed (session not connected) - fall back to stored metadata

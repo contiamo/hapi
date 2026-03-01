@@ -1,4 +1,4 @@
-import { getPermissionModeOptionsForFlavor, MODEL_MODE_LABELS, MODEL_MODES } from '@hapi/protocol'
+import { getPermissionModeOptions, MODEL_MODE_LABELS, MODEL_MODES } from '@hapi/protocol'
 import { ComposerPrimitive, useAssistantApi, useAssistantState } from '@assistant-ui/react'
 import {
     type ChangeEvent as ReactChangeEvent,
@@ -54,7 +54,6 @@ export function HappyComposer(props: {
     agentState?: AgentState | null
     contextSize?: number
     controlledByUser?: boolean
-    agentFlavor?: string | null
     onPermissionModeChange?: (mode: PermissionMode) => void
     onModelModeChange?: (mode: ModelMode) => void
     onSwitchToRemote?: () => void
@@ -77,7 +76,6 @@ export function HappyComposer(props: {
         agentState,
         contextSize,
         controlledByUser = false,
-        agentFlavor,
         onPermissionModeChange,
         onModelModeChange,
         onSwitchToRemote,
@@ -368,13 +366,8 @@ export function HappyComposer(props: {
             markSkillUsed(suggestion.text.slice(1))
         }
 
-        // For Codex user prompts with content, expand the content instead of command name
-        let textToInsert = suggestion.text
-        let addSpace = true
-        if (agentFlavor === 'codex' && suggestion.source === 'user' && suggestion.content) {
-            textToInsert = suggestion.content
-            addSpace = false
-        }
+        const textToInsert = suggestion.text
+        const addSpace = true
 
         const result = applySuggestion(
             inputState.text,
@@ -402,7 +395,7 @@ export function HappyComposer(props: {
         }, 0)
 
         haptic('light')
-    }, [api, suggestions, inputState, autocompletePrefixes, haptic, agentFlavor])
+    }, [api, suggestions, inputState, autocompletePrefixes, haptic])
 
     const abortDisabled = controlsDisabled || isAborting || !threadIsRunning
     const switchDisabled = controlsDisabled || isSwitching || !controlledByUser
@@ -440,8 +433,8 @@ export function HappyComposer(props: {
     }, [switchDisabled, onSwitchToRemote, haptic])
 
     const permissionModeOptions = useMemo(
-        () => getPermissionModeOptionsForFlavor(agentFlavor),
-        [agentFlavor]
+        () => getPermissionModeOptions(),
+        []
     )
     const permissionModes = useMemo(
         () => permissionModeOptions.map((option) => option.mode),
@@ -527,7 +520,7 @@ export function HappyComposer(props: {
 
     useEffect(() => {
         const handleGlobalKeyDown = (e: globalThis.KeyboardEvent) => {
-            if (e.key === 'm' && (e.metaKey || e.ctrlKey) && onModelModeChange && agentFlavor !== 'codex' && agentFlavor !== 'gemini') {
+            if (e.key === 'm' && (e.metaKey || e.ctrlKey) && onModelModeChange) {
                 e.preventDefault()
                 const currentIndex = MODEL_MODES.indexOf(modelMode as typeof MODEL_MODES[number])
                 const nextIndex = (currentIndex + 1) % MODEL_MODES.length
@@ -538,7 +531,7 @@ export function HappyComposer(props: {
 
         window.addEventListener('keydown', handleGlobalKeyDown)
         return () => window.removeEventListener('keydown', handleGlobalKeyDown)
-    }, [modelMode, onModelModeChange, haptic, agentFlavor])
+    }, [modelMode, onModelModeChange, haptic])
 
     const handleChange = useCallback((e: ReactChangeEvent<HTMLTextAreaElement>) => {
         const selection = {
@@ -601,7 +594,7 @@ export function HappyComposer(props: {
     }, [onModelModeChange, controlsDisabled, haptic])
 
     const showPermissionSettings = Boolean(onPermissionModeChange && permissionModeOptions.length > 0)
-    const showModelSettings = Boolean(onModelModeChange && agentFlavor !== 'codex' && agentFlavor !== 'gemini')
+    const showModelSettings = Boolean(onModelModeChange)
     const showSettingsButton = Boolean(showPermissionSettings || showModelSettings)
     const showAbortButton = true
     const voiceEnabled = Boolean(onVoiceToggle)
@@ -781,7 +774,6 @@ export function HappyComposer(props: {
                                 contextSize={contextSize}
                                 modelMode={modelMode}
                                 permissionMode={permissionMode}
-                                agentFlavor={agentFlavor}
                                 voiceStatus={voiceStatus}
                             />
                         )}

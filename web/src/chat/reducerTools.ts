@@ -22,10 +22,11 @@ export function getPermissions(agentState: AgentState | null | undefined): Map<s
                     reason: entry.reason ?? undefined,
                     mode: entry.mode ?? undefined,
                     decision: entry.decision ?? undefined,
-                    allowedTools: entry.allowTools,
                     answers: entry.answers,
                     createdAt: entry.createdAt ?? null,
-                    completedAt: entry.completedAt ?? null
+                    completedAt: entry.completedAt ?? null,
+                    blockedPath: entry.blockedPath,
+                    decisionReason: entry.decisionReason
                 }
             })
         }
@@ -41,7 +42,10 @@ export function getPermissions(agentState: AgentState | null | undefined): Map<s
                 permission: {
                     id,
                     status: 'pending',
-                    createdAt: request.createdAt ?? null
+                    suggestions: request.suggestions,
+                    createdAt: request.createdAt ?? null,
+                    blockedPath: request.blockedPath,
+                    decisionReason: request.decisionReason
                 }
             })
         }

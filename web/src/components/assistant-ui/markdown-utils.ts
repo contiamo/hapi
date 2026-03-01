@@ -1,5 +1,8 @@
+// oxlint-disable-next-line no-control-regex
 const ANSI_REGEX = /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g
+// oxlint-disable-next-line no-control-regex
 const ANSI_OSC_REGEX = /\u001b\][^\u0007]*(?:\u0007|\u001b\\)/g
+// oxlint-disable-next-line no-control-regex
 const CONTROL_CHARS_REGEX = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g
 
 export function stripAnsiAndControls(text: string): string {

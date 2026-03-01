@@ -136,7 +136,7 @@ export function createSession(
     metadata: unknown,
     agentState: unknown,
     active: boolean = false,
-    thinking: boolean = false
+    _thinking: boolean = false
 ): StoredSession {
     if (!isValidUUID(id)) {
         throw new Error(`Invalid session ID format: ${id}`)

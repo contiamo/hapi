@@ -1,5 +1,5 @@
 import type { AgentState } from "@/api/types";
-import type { PermissionMode } from "@hapi/protocol/types";
+import type { PermissionUpdate } from "@anthropic-ai/claude-agent-sdk";
 
 type RpcHandlerManagerLike = {
     registerHandler<TRequest = unknown, TResponse = unknown>(
@@ -8,24 +8,6 @@ type RpcHandlerManagerLike = {
     ): void;
 };
 
-export type AutoApprovalDecision = 'approved' | 'approved_for_session';
-
-type AutoApprovalRuleSet = {
-    alwaysToolNameHints?: string[];
-    alwaysToolIdHints?: string[];
-    writeToolNameHints?: string[];
-};
-
-const AUTO_APPROVE_TOOL_NAME_HINTS = [
-    'change_title',
-    'happy__change_title',
-    'geminireasoning',
-    'codexreasoning',
-    'think',
-    'save_memory'
-];
-const AUTO_APPROVE_TOOL_ID_HINTS = ['change_title', 'save_memory'];
-const AUTO_APPROVE_WRITE_TOOL_HINTS = ['write', 'edit', 'create', 'delete', 'patch', 'fs-edit'];
 
 export type PermissionHandlerClient = {
     rpcHandlerManager: RpcHandlerManagerLike;
@@ -37,14 +19,17 @@ export type PendingPermissionRequest<TResult> = {
     reject: (error: Error) => void;
     toolName: string;
     input: unknown;
+    suggestions?: PermissionUpdate[];
+    blockedPath?: string;
+    decisionReason?: string;
+    agentID?: string; // metadata only — logged and forwarded to UI, not consulted in response handling
 };
 
 export type PermissionCompletion = {
     status: 'approved' | 'denied' | 'canceled';
     reason?: string;
     mode?: string;
-    decision?: 'approved' | 'approved_for_session' | 'denied' | 'abort';
-    allowTools?: string[];
+    decision?: 'approved' | 'denied' | 'abort';
     answers?: Record<string, string[]> | Record<string, { answers: string[] }>;
 };
 
@@ -76,53 +61,17 @@ export abstract class BasePermissionHandler<TResponse extends { id: string }, TR
     protected onResponseReceived(_response: TResponse): void {
     }
 
-    protected resolveAutoApprovalDecision(
-        mode: PermissionMode | undefined,
-        toolName: string,
-        toolCallId: string,
-        ruleOverrides?: AutoApprovalRuleSet
-    ): AutoApprovalDecision | null {
-        const rules = {
-            alwaysToolNameHints: ruleOverrides?.alwaysToolNameHints ?? AUTO_APPROVE_TOOL_NAME_HINTS,
-            alwaysToolIdHints: ruleOverrides?.alwaysToolIdHints ?? AUTO_APPROVE_TOOL_ID_HINTS,
-            writeToolNameHints: ruleOverrides?.writeToolNameHints ?? AUTO_APPROVE_WRITE_TOOL_HINTS
-        };
-
-        const lowerTool = toolName.toLowerCase();
-        const lowerId = toolCallId.toLowerCase();
-        const decisionForMode: AutoApprovalDecision = mode === 'yolo' ? 'approved_for_session' : 'approved';
-
-        if (rules.alwaysToolNameHints.some((name) => lowerTool.includes(name))) {
-            return decisionForMode;
-        }
-
-        if (rules.alwaysToolIdHints.some((name) => lowerId.includes(name))) {
-            return decisionForMode;
-        }
-
-        if (mode === 'yolo') {
-            return 'approved_for_session';
-        }
-
-        if (mode === 'safe-yolo') {
-            return 'approved';
-        }
-
-        if (mode === 'read-only') {
-            const isWriteTool = rules.writeToolNameHints.some((name) => lowerTool.includes(name));
-            return isWriteTool ? null : 'approved';
-        }
-
-        return null;
-    }
-
     protected addPendingRequest(
         id: string,
         toolName: string,
         input: unknown,
-        handlers: { resolve: (value: TResult) => void; reject: (error: Error) => void }
+        handlers: { resolve: (value: TResult) => void; reject: (error: Error) => void },
+        suggestions?: PermissionUpdate[],
+        blockedPath?: string,
+        decisionReason?: string,
+        agentID?: string
     ): void {
-        this.pendingRequests.set(id, { ...handlers, toolName, input });
+        this.pendingRequests.set(id, { ...handlers, toolName, input, suggestions, blockedPath, decisionReason, agentID });
         this.onRequestRegistered(id, toolName, input);
         this.client.updateAgentState((currentState) => ({
             ...currentState,
@@ -131,7 +80,11 @@ export abstract class BasePermissionHandler<TResponse extends { id: string }, TR
                 [id]: {
                     tool: toolName,
                     arguments: input,
-                    createdAt: Date.now()
+                    createdAt: Date.now(),
+                    suggestions,
+                    blockedPath,
+                    decisionReason,
+                    agentID
                 }
             }
         }));
@@ -157,7 +110,6 @@ export abstract class BasePermissionHandler<TResponse extends { id: string }, TR
                         reason: completion.reason,
                         mode: completion.mode,
                         decision: completion.decision,
-                        allowTools: completion.allowTools,
                         answers: completion.answers
                     }
                 }

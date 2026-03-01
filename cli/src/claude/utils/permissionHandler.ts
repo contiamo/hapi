@@ -1,19 +1,16 @@
 /**
  * Permission Handler for canCallTool integration
- * 
+ *
  * Replaces the MCP permission server with direct SDK integration.
  * Handles tool permission requests, responses, and state management.
  */
 
 import { logger } from "@/lib";
-import { SDKAssistantMessage, SDKMessage, SDKUserMessage } from "../sdk";
-import type { CanUseTool, PermissionResult } from "@anthropic-ai/claude-agent-sdk";
+import type { CanUseTool, PermissionResult, PermissionUpdate } from "@anthropic-ai/claude-agent-sdk";
 import { PLAN_FAKE_REJECT, PLAN_FAKE_RESTART } from "../sdk/prompts";
 import { Session } from "../session";
-import { deepEqual } from "@/utils/deepEqual";
 import { EnhancedMode, PermissionMode } from "../loop";
 import { getToolDescriptor } from "./getToolDescriptor";
-import { delay } from "@/utils/time";
 import { isObject } from "@hapi/protocol";
 import {
     BasePermissionHandler,
@@ -26,8 +23,9 @@ interface PermissionResponse {
     approved: boolean;
     reason?: string;
     mode?: PermissionMode;
-    allowTools?: string[];
+    suggestions?: PermissionUpdate[];
     answers?: Record<string, string[]> | Record<string, { answers: string[] }>;
+    message?: string;
     receivedAt?: number;
 }
 
@@ -82,20 +80,18 @@ function buildRequestUserInputUpdatedInput(input: unknown, answers: unknown): Re
 }
 
 export class PermissionHandler extends BasePermissionHandler<PermissionResponse, PermissionResult> {
-    private toolCalls: { id: string, name: string, input: any, used: boolean }[] = [];
+    // Maps toolUseID → toolName for use by isAborted().
+    // Populated in handleToolCall at callback time when the SDK provides both.
+    private activeToolNames = new Map<string, string>();
     private responses = new Map<string, PermissionResponse>();
     private session: Session;
-    private allowedTools = new Set<string>();
-    private allowedBashLiterals = new Set<string>();
-    private allowedBashPrefixes = new Set<string>();
-    private permissionMode: PermissionMode = 'default';
     private onPermissionRequestCallback?: (toolCallId: string) => void;
 
     constructor(session: Session) {
         super(session.client);
         this.session = session;
     }
-    
+
     /**
      * Set callback to trigger when permission request is made
      */
@@ -103,8 +99,7 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
         this.onPermissionRequestCallback = callback;
     }
 
-    handleModeChange(mode: PermissionMode) {
-        this.permissionMode = mode;
+    setPermissionMode(mode: PermissionMode) {
         this.session.setPermissionMode(mode);
     }
 
@@ -119,27 +114,11 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
             status: response.approved ? 'approved' : 'denied',
             reason: response.reason,
             mode: response.mode,
-            allowTools: response.allowTools,
             answers: response.answers
         };
 
-        // Update allowed tools
-        if (response.allowTools && response.allowTools.length > 0) {
-            response.allowTools.forEach(tool => {
-                if (isQuestionToolName(tool)) {
-                    return;
-                }
-                if (tool.startsWith('Bash(') || tool === 'Bash') {
-                    this.parseBashPermission(tool);
-                } else {
-                    this.allowedTools.add(tool);
-                }
-            });
-        }
-
         // Update permission mode
         if (response.mode) {
-            this.permissionMode = response.mode;
             this.session.setPermissionMode(response.mode);
         }
 
@@ -194,38 +173,43 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
         }
 
         // Handle default case for all other tools
-        const result: PermissionResult = response.approved
-            ? { behavior: 'allow', updatedInput: (pending.input as Record<string, unknown>) ?? {} }
-            : { behavior: 'deny', message: response.reason || `The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed.` };
+        if (response.approved) {
+            // If the user attached a message alongside their approval, queue it as follow-up input.
+            // We use only permissionMode here; model/fallback inherit from the queue consumer's
+            // current mode rather than being explicitly forwarded.
+            if (response.message) {
+                this.session.queue.push(response.message, { permissionMode: (this.session.getPermissionMode() ?? 'default') });
+            }
 
-        pending.resolve(result);
+            // Build updatedPermissions: if the user confirmed suggestions (possibly edited),
+            // return them so the SDK records the rule and won't ask again.
+            // For plain approve (no suggestions), no update needed.
+            const updatedPermissions = response.suggestions?.length
+                ? response.suggestions
+                : undefined;
+
+            pending.resolve({
+                behavior: 'allow',
+                updatedInput: pending.input as Record<string, unknown>,
+                updatedPermissions
+            });
+        } else {
+            // If the user typed a message alongside deny, queue it as a follow-up user turn
+            // so Claude responds to the feedback rather than just stopping.
+            if (response.reason) {
+                this.session.queue.push(response.reason, { permissionMode: (this.session.getPermissionMode() ?? 'default') });
+            }
+            pending.resolve({ behavior: 'deny', message: `The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed.` });
+        }
+
         return completion;
     }
 
     /**
      * Creates the canCallTool callback for the SDK
      */
-    handleToolCall = async (toolName: string, input: Record<string, unknown>, mode: EnhancedMode, options: Parameters<CanUseTool>[2]): Promise<PermissionResult> => {
+    handleToolCall = async (toolName: string, input: Record<string, unknown>, _mode: EnhancedMode, options: Parameters<CanUseTool>[2]): Promise<PermissionResult> => {
         const isQuestionTool = isQuestionToolName(toolName);
-
-        // Check if tool is explicitly allowed
-        if (!isQuestionTool && toolName === 'Bash') {
-            const inputObj = input as { command?: string };
-            if (inputObj?.command) {
-                // Check literal matches
-                if (this.allowedBashLiterals.has(inputObj.command)) {
-                    return { behavior: 'allow', updatedInput: input };
-                }
-                // Check prefix matches
-                for (const prefix of this.allowedBashPrefixes) {
-                    if (inputObj.command.startsWith(prefix)) {
-                        return { behavior: 'allow', updatedInput: input };
-                    }
-                }
-            }
-        } else if (!isQuestionTool && this.allowedTools.has(toolName)) {
-            return { behavior: 'allow', updatedInput: input };
-        }
 
         // Calculate descriptor
         const descriptor = getToolDescriptor(toolName);
@@ -234,11 +218,14 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
         // Handle special cases
         //
 
-        if (!isQuestionTool && this.permissionMode === 'bypassPermissions') {
+        // These fast-paths return before registering into activeToolNames.
+        // isAborted() finding no entry for these IDs correctly returns false — bypassed
+        // tools are not aborted and exit_plan_mode is never bypassed by these guards.
+        if (!isQuestionTool && (this.session.getPermissionMode() ?? 'default') === 'bypassPermissions') {
             return { behavior: 'allow', updatedInput: input };
         }
 
-        if (!isQuestionTool && this.permissionMode === 'acceptEdits' && descriptor.edit) {
+        if (!isQuestionTool && (this.session.getPermissionMode() ?? 'default') === 'acceptEdits' && descriptor.edit) {
             return { behavior: 'allow', updatedInput: input };
         }
 
@@ -246,15 +233,17 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
         // Approval flow
         //
 
-        let toolCallId = this.resolveToolCallId(toolName, input);
-        if (!toolCallId) { // What if we got permission before tool call
-            await delay(1000);
-            toolCallId = this.resolveToolCallId(toolName, input);
-            if (!toolCallId) {
-                throw new Error(`Could not resolve tool call ID for ${toolName}`);
-            }
+        // The SDK provides toolUseID directly — unique per call, guaranteed present.
+        // We record the name here so isAborted() can check it later from tool_result blocks
+        // in user messages where only the ID is available.
+        const toolCallId = options.toolUseID;
+        this.activeToolNames.set(toolCallId, toolName);
+
+        if (options.agentID) {
+            logger.debug(`[permission] Request from sub-agent ${options.agentID}: ${toolName} (${toolCallId})`);
         }
-        return this.handlePermissionRequest(toolCallId, toolName, input, options.signal);
+
+        return this.handlePermissionRequest(toolCallId, toolName, input, options.signal, options.suggestions, options.blockedPath, options.decisionReason, options.agentID);
     }
 
     /**
@@ -264,7 +253,11 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
         id: string,
         toolName: string,
         input: unknown,
-        signal: AbortSignal
+        signal: AbortSignal,
+        suggestions?: PermissionUpdate[],
+        blockedPath?: string,
+        decisionReason?: string,
+        agentID?: string
     ): Promise<PermissionResult> {
         return new Promise<PermissionResult>((resolve, reject) => {
             // Set up abort signal handling
@@ -284,113 +277,28 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
                     signal.removeEventListener('abort', abortHandler);
                     reject(error);
                 }
-            });
+            }, suggestions, blockedPath, decisionReason, agentID);
 
             logger.debug(`Permission request sent for tool call ${id}: ${toolName}`);
         });
     }
 
-
     /**
-     * Parses Bash permission strings into literal and prefix sets
-     */
-    private parseBashPermission(permission: string): void {
-        // Ignore plain "Bash"
-        if (permission === 'Bash') {
-            return;
-        }
-
-        // Match Bash(command) or Bash(command:*)
-        const bashPattern = /^Bash\((.+?)\)$/;
-        const match = permission.match(bashPattern);
-        
-        if (!match) {
-            return;
-        }
-
-        const command = match[1];
-        
-        // Check if it's a prefix pattern (ends with :*)
-        if (command.endsWith(':*')) {
-            const prefix = command.slice(0, -2); // Remove :*
-            this.allowedBashPrefixes.add(prefix);
-        } else {
-            // Literal match
-            this.allowedBashLiterals.add(command);
-        }
-    }
-
-    /**
-     * Resolves tool call ID based on tool name and input
-     */
-    private resolveToolCallId(name: string, args: any): string | null {
-        // Search in reverse (most recent first)
-        for (let i = this.toolCalls.length - 1; i >= 0; i--) {
-            const call = this.toolCalls[i];
-            if (call.name === name && deepEqual(call.input, args)) {
-                if (call.used) {
-                    return null;
-                }
-                // Found unused match - mark as used and return
-                call.used = true;
-                return call.id;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Handles messages to track tool calls
-     */
-    onMessage(message: SDKMessage): void {
-        if (message.type === 'assistant') {
-            const assistantMsg = message as SDKAssistantMessage;
-            if (assistantMsg.message && assistantMsg.message.content) {
-                for (const block of assistantMsg.message.content) {
-                    if (block.type === 'tool_use') {
-                        this.toolCalls.push({
-                            id: block.id!,
-                            name: block.name!,
-                            input: block.input,
-                            used: false
-                        });
-                    }
-                }
-            }
-        }
-        if (message.type === 'user') {
-            const userMsg = message as SDKUserMessage;
-            if (userMsg.message && userMsg.message.content && Array.isArray(userMsg.message.content)) {
-                for (const block of userMsg.message.content) {
-                    if (block.type === 'tool_result' && block.tool_use_id) {
-                        const toolCall = this.toolCalls.find(tc => tc.id === block.tool_use_id);
-                        if (toolCall && !toolCall.used) {
-                            toolCall.used = true;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Checks if a tool call is rejected
+     * Checks if a tool call is aborted (denied or always-abort tool).
+     * Called from claudeRemote when a tool_result arrives in a user message.
      */
     isAborted(toolCallId: string): boolean {
-
-        // If tool not approved, it's aborted
         if (this.responses.get(toolCallId)?.approved === false) {
             return true;
         }
 
-        // Always abort exit_plan_mode
-        const toolCall = this.toolCalls.find(tc => tc.id === toolCallId);
-        if (toolCall && (toolCall.name === 'exit_plan_mode' || toolCall.name === 'ExitPlanMode')) {
+        // exit_plan_mode is always aborted — the plan handler resolves it with deny
+        // so the SDK loop exits cleanly, but we still need to signal abort here.
+        const name = this.activeToolNames.get(toolCallId);
+        if (name === 'exit_plan_mode' || name === 'ExitPlanMode') {
             return true;
         }
 
-        // Tool call is not aborted
         return false;
     }
 
@@ -427,17 +335,31 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
     }
 
     /**
-     * Resets all state for new sessions
+     * Reset between turns of the same conversation.
+     * Clears per-turn state (active tool names, responses).
+     * Session-scoped permissions are tracked by the SDK via updatedPermissions.
+     *
+     * No pending requests should exist at turn boundaries (claudeRemote has
+     * already completed), so we do not cancel them here.
+     *
+     * responses is batch-cleared here rather than per-entry after isAborted() because
+     * it is only read within the same turn and SDK-guaranteed unique IDs mean there
+     * is no cross-turn collision risk.
+     */
+    resetTurn(): void {
+        this.activeToolNames.clear();
+        this.responses.clear();
+    }
+
+    /**
+     * Full reset for a genuinely new session (e.g. after /clear).
      */
     reset(): void {
-        this.toolCalls = [];
+        this.activeToolNames.clear();
         this.responses.clear();
-        this.allowedTools.clear();
-        this.allowedBashLiterals.clear();
-        this.allowedBashPrefixes.clear();
 
         this.cancelPendingRequests({
-            completedReason: 'Session switched to local mode',
+            completedReason: 'Session reset',
             rejectMessage: 'Session reset'
         });
     }
@@ -458,7 +380,7 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
         this.responses.set(response.id, { ...response, receivedAt: Date.now() });
     }
 
-    protected onRequestRegistered(toolCallId: string): void {
+    protected onRequestRegistered(toolCallId: string, _toolName: string, _input: unknown): void {
         if (this.onPermissionRequestCallback) {
             this.onPermissionRequestCallback(toolCallId);
         }

@@ -1,30 +1,22 @@
 import { logger } from '@/ui/logger'
 import type { RpcHandlerManager } from '@/api/rpc/RpcHandlerManager'
-import { listSlashCommands, type ListSlashCommandsRequest, type ListSlashCommandsResponse } from '../slashCommands'
+import { listSlashCommands, INTERCEPTED_COMMANDS, type ListSlashCommandsResponse } from '../slashCommands'
 import { getErrorMessage, rpcError } from '../rpcResponses'
 import type { ApiSessionClient } from '@/api/apiSession'
-import type { SlashCommand } from '@hapi/protocol/types'
-
-// Minimal intercepted commands shown while metadata loads
-const INTERCEPTED_COMMANDS: SlashCommand[] = [
-    { name: 'clear', description: 'Complete context and session reset', source: 'builtin' },
-    { name: 'compact', description: 'Compress context while preserving session', source: 'builtin' },
-    { name: 'rollback', description: 'Remove the last N conversation turns (default: 1)', source: 'builtin' },
-];
 
 export function registerSlashCommandHandlers(
     rpcHandlerManager: RpcHandlerManager,
     getApiSession: () => ApiSessionClient | null
 ): void {
-    rpcHandlerManager.registerHandler<ListSlashCommandsRequest, ListSlashCommandsResponse>('listSlashCommands', async (data) => {
-        logger.debug('List slash commands request for agent:', data.agent)
+    rpcHandlerManager.registerHandler<void, ListSlashCommandsResponse>('listSlashCommands', async () => {
+        logger.debug('List slash commands request')
 
         try {
             const apiSession = getApiSession();
             const metadata = apiSession?.getMetadata();
 
-            // For Claude: Check if metadata extraction is still in progress
-            if (data.agent === 'claude' && apiSession && !metadata?.slashCommands) {
+            // Check if metadata extraction is still in progress
+            if (apiSession && !metadata?.slashCommands) {
                 logger.debug('Metadata extraction in progress, returning loading state')
                 return {
                     success: true,
@@ -43,9 +35,9 @@ export function registerSlashCommandHandlers(
                 };
             }
 
-            // Fallback: Use old hardcoded list for non-Claude agents or if metadata missing
+            // Fallback: if metadata missing entirely
             logger.debug('Falling back to hardcoded slash commands')
-            const commands = await listSlashCommands(data.agent)
+            const commands = listSlashCommands()
             return { success: true, loading: false, commands }
         } catch (error) {
             logger.debug('Failed to list slash commands:', error)

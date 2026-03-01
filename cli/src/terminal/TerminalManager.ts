@@ -32,9 +32,7 @@ const SENSITIVE_ENV_KEYS = new Set([
     'HAPI_HTTP_MCP_URL',
     'TELEGRAM_BOT_TOKEN',
     'OPENAI_API_KEY',
-    'ANTHROPIC_API_KEY',
-    'GEMINI_API_KEY',
-    'GOOGLE_API_KEY'
+    'ANTHROPIC_API_KEY'
 ])
 
 function resolveEnvNumber(name: string, fallback: number): number {

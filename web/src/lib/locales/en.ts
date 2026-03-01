@@ -210,8 +210,6 @@ export default {
   'tool.prev': '← Prev',
   'tool.next': 'Next →',
   'tool.yes': 'Yes',
-  'tool.yesForSession': 'Yes for session',
-  'tool.allowForSession': 'Allow for session',
   'tool.abortLabel': 'Abort',
   'tool.other': 'Other',
   'tool.otherDescription': 'Type your own answer',
@@ -219,7 +217,6 @@ export default {
   'tool.selectOption': 'Please select at least one option or type an answer.',
   'tool.waitingForApproval': 'Waiting for approval…',
   'tool.canceled': 'Canceled',
-  'tool.approvedForSession': 'Approved for session',
   'tool.aborted': 'Aborted',
   'tool.approvedAllowAllEdits': 'Approved: Allow all edits',
   'tool.requestFailed': 'Request failed',
@@ -229,6 +226,7 @@ export default {
   'tool.requestUserInput.textPlaceholder': 'Type your answer…',
   'tool.requestUserInput.noteLabel': 'Additional note (optional)',
   'tool.requestUserInput.notePlaceholder': 'Add a note…',
+  'tool.messageHint': 'Add a message (optional)…',
 
   // Composer buttons
   'composer.settings': 'Settings',

@@ -212,8 +212,6 @@ export default {
   'tool.prev': '← 上一个',
   'tool.next': '下一个 →',
   'tool.yes': '是',
-  'tool.yesForSession': '本会话允许',
-  'tool.allowForSession': '本会话允许',
   'tool.abortLabel': '中止',
   'tool.other': '其他',
   'tool.otherDescription': '输入您自己的答案',
@@ -221,7 +219,6 @@ export default {
   'tool.selectOption': '请至少选择一个选项或输入答案。',
   'tool.waitingForApproval': '等待审批…',
   'tool.canceled': '已取消',
-  'tool.approvedForSession': '本会话已批准',
   'tool.aborted': '已中止',
   'tool.approvedAllowAllEdits': '已批准：允许所有编辑',
   'tool.requestFailed': '请求失败',
@@ -231,6 +228,7 @@ export default {
   'tool.requestUserInput.textPlaceholder': '输入您的答案…',
   'tool.requestUserInput.noteLabel': '补充说明（可选）',
   'tool.requestUserInput.notePlaceholder': '添加备注…',
+  'tool.messageHint': '添加消息（可选）…',
 
   // Composer buttons
   'composer.settings': '设置',

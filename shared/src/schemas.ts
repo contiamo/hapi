@@ -1,7 +1,7 @@
 import { z } from 'zod'
-import { MODEL_MODES, PERMISSION_MODES } from './modes'
+import { MODEL_MODES, CLAUDE_PERMISSION_MODES } from './modes'
 
-export const PermissionModeSchema = z.enum(PERMISSION_MODES)
+export const PermissionModeSchema = z.enum(CLAUDE_PERMISSION_MODES)
 export const ModelModeSchema = z.enum(MODEL_MODES)
 
 const MetadataSummarySchema = z.object({
@@ -46,8 +46,6 @@ export const MetadataSchema = z.object({
     summary: MetadataSummarySchema.optional(),
     machineId: z.string().optional(),
     claudeSessionId: z.string().optional(),
-    codexSessionId: z.string().optional(),
-    geminiSessionId: z.string().optional(),
     tools: z.array(z.string()).optional(),
     slashCommands: z.preprocess(
         (val) => {
@@ -67,7 +65,7 @@ export const MetadataSchema = z.object({
     lifecycleStateSince: z.number().optional(),
     archivedBy: z.string().optional(),
     archiveReason: z.string().optional(),
-    flavor: z.string().nullish(),
+    flavor: z.literal('claude').nullish(),
     worktree: WorktreeMetadataSchema.optional(),
     shouldFork: z.boolean().optional(),
     yolo: z.boolean().optional(),
@@ -76,10 +74,30 @@ export const MetadataSchema = z.object({
 
 export type Metadata = z.infer<typeof MetadataSchema>
 
+const PermissionRuleValueSchema = z.object({
+    toolName: z.string(),
+    ruleContent: z.string().optional()
+})
+
+export const PermissionUpdateSchema = z.discriminatedUnion('type', [
+    z.object({ type: z.literal('addRules'), rules: z.array(PermissionRuleValueSchema), behavior: z.enum(['allow', 'deny', 'ask']), destination: z.string() }),
+    z.object({ type: z.literal('replaceRules'), rules: z.array(PermissionRuleValueSchema), behavior: z.enum(['allow', 'deny', 'ask']), destination: z.string() }),
+    z.object({ type: z.literal('removeRules'), rules: z.array(PermissionRuleValueSchema), behavior: z.enum(['allow', 'deny', 'ask']), destination: z.string() }),
+    z.object({ type: z.literal('setMode'), mode: z.string(), destination: z.string() }),
+    z.object({ type: z.literal('addDirectories'), directories: z.array(z.string()), destination: z.string() }),
+    z.object({ type: z.literal('removeDirectories'), directories: z.array(z.string()), destination: z.string() }),
+])
+
+export type PermissionUpdate = z.infer<typeof PermissionUpdateSchema>
+
 export const AgentStateRequestSchema = z.object({
     tool: z.string(),
     arguments: z.unknown(),
-    createdAt: z.number().nullish()
+    createdAt: z.number().nullish(),
+    suggestions: z.array(PermissionUpdateSchema).optional(),
+    blockedPath: z.string().optional(),
+    decisionReason: z.string().optional(),
+    agentID: z.string().optional()
 })
 
 export type AgentStateRequest = z.infer<typeof AgentStateRequestSchema>
@@ -92,14 +110,16 @@ export const AgentStateCompletedRequestSchema = z.object({
     status: z.enum(['canceled', 'denied', 'approved']),
     reason: z.string().optional(),
     mode: z.string().optional(),
-    decision: z.enum(['approved', 'approved_for_session', 'denied', 'abort']).optional(),
-    allowTools: z.array(z.string()).optional(),
+    decision: z.enum(['approved', 'denied', 'abort']).optional(),
     // Flat format: Record<string, string[]> (AskUserQuestion)
     // Nested format: Record<string, { answers: string[] }> (request_user_input)
     answers: z.union([
         z.record(z.string(), z.array(z.string())),
         z.record(z.string(), z.object({ answers: z.array(z.string()) }))
-    ]).optional()
+    ]).optional(),
+    blockedPath: z.string().optional(),
+    decisionReason: z.string().optional(),
+    agentID: z.string().optional()
 })
 
 export type AgentStateCompletedRequest = z.infer<typeof AgentStateCompletedRequestSchema>
